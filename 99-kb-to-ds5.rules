@@ -1,0 +1,11 @@
+# Allow users in the 'input' group to access /dev/uhid (virtual HID device creation)
+# and evdev input nodes (for EVIOCGRAB keyboard/mouse exclusive access).
+#
+# Install:
+#   sudo cp 99-kb-to-ds5.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#   sudo usermod -aG input $USER   # log out and back in for group to take effect
+
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0ce6", GROUP="input", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="misc", KERNEL=="uhid", GROUP="input", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="input", KERNEL=="event*", GROUP="input", MODE="0660", TAG+="uaccess"

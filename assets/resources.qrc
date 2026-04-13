@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/">
+        <file>icon.png</file>
+        <file>ps5_diagram_simple.png</file>
+    </qresource>
+</RCC>
