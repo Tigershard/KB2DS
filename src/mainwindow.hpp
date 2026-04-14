@@ -9,10 +9,13 @@
 class ControllerMapWidget;
 class InputWorker;
 class MappingEditorWidget;
+class IgdbClient;
 class QCheckBox;
+class QComboBox;
 class QDoubleSpinBox;
 class QGroupBox;
 class QLabel;
+class QLineEdit;
 class QListWidget;
 class QMenu;
 class QPushButton;
@@ -39,6 +42,10 @@ private slots:
     void on_mapping_changed();
     void on_sensitivity_changed();
     void on_tray_activated(QSystemTrayIcon::ActivationReason reason);
+    void on_profile_load();
+    void on_profile_save_as();
+    void on_profile_save_current();
+    void on_profile_delete();
 
 private:
     void setup_ui();
@@ -49,14 +56,20 @@ private:
     void push_config_to_worker();
     void refresh_devices();
     void save_device_selection();
+    void refresh_profile_list();
+    void update_profile_display(const QString& name);
+    void load_profile_by_name(const QString& name);
+    void show_profile_menu();
     QStringList selected_device_paths() const;
 
     // ── UI elements ───────────────────────────────────────────────────────────
-    QWidget*             custom_title_bar_ = nullptr;
+    QWidget*             custom_title_bar_    = nullptr;
+    QWidget*             profile_box_         = nullptr;
     QLabel*              title_label_      = nullptr;
-    QLabel*              status_label_     = nullptr;
-    QLabel*              stats_label_      = nullptr;
-    QGroupBox*           status_group_     = nullptr;
+    QLabel*              status_label_         = nullptr;
+    QLabel*              stats_label_          = nullptr;
+    QGroupBox*           status_group_         = nullptr;
+    QLabel*              profile_display_label_= nullptr;
     QPushButton*         start_btn_        = nullptr;
     QPushButton*         pause_btn_        = nullptr;
     QPushButton*         stop_btn_         = nullptr;
@@ -72,6 +85,10 @@ private:
     QLabel*              touchpad_key_label_ = nullptr;
     QPushButton*         touchpad_key_btn_   = nullptr;
     QPushButton*         touchpad_key_clear_ = nullptr;
+    QComboBox*           profile_combo_      = nullptr;
+    QPushButton*         profile_load_btn_   = nullptr;
+    QPushButton*         profile_save_btn_   = nullptr;
+    QPushButton*         profile_delete_btn_ = nullptr;
     MappingEditorWidget* editor_           = nullptr;
     ControllerMapWidget* controller_map_   = nullptr;
     QTabWidget*          main_tabs_        = nullptr;
@@ -82,10 +99,16 @@ private:
     QAction*         tray_show_       = nullptr;
     QAction*         tray_quit_       = nullptr;
 
+    // ── IGDB ──────────────────────────────────────────────────────────────────
+    QGroupBox*  igdb_group_      = nullptr;
+    QLineEdit*  igdb_id_edit_    = nullptr;
+    QLineEdit*  igdb_secret_edit_= nullptr;
+
     // ── State ─────────────────────────────────────────────────────────────────
-    InputWorker* worker_     = nullptr;
+    InputWorker* worker_      = nullptr;
+    IgdbClient*  igdb_client_ = nullptr;
     QSettings    settings_;
-    bool         is_running_ = false;
+    bool         is_running_  = false;
 
     // Mouse-stick config (owned here, synced to worker and editor)
     kb::MouseStickConfig mouse_stick_;

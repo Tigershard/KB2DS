@@ -18,6 +18,20 @@ static QString config_path()
            + "/mappings.json";
 }
 
+static QString profiles_dir()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
+           + "/profiles";
+}
+
+// Replace the one character that is truly invalid in Linux filenames.
+static QString sanitize_name(const QString& name)
+{
+    QString s = name.trimmed().left(64);
+    s.replace('/', '-');
+    return s;
+}
+
 // ── Default mappings (used when no config file exists) ────────────────────────
 
 static kb::Config make_defaults()
@@ -65,26 +79,26 @@ static kb::Config make_defaults()
     };
 
     // WASD → left stick
-    cfg.mappings << axis(KEY_W, "W → Left Stick Up",    2,   0);
-    cfg.mappings << axis(KEY_S, "S → Left Stick Down",  2, 255);
-    cfg.mappings << axis(KEY_A, "A → Left Stick Left",  1,   0);
-    cfg.mappings << axis(KEY_D, "D → Left Stick Right", 1, 255);
+    cfg.mappings << axis(KEY_W, "Left Stick Up",    2,   0);
+    cfg.mappings << axis(KEY_S, "Left Stick Down",  2, 255);
+    cfg.mappings << axis(KEY_A, "Left Stick Left",  1,   0);
+    cfg.mappings << axis(KEY_D, "Left Stick Right", 1, 255);
 
     // Face buttons
-    cfg.mappings << btn(KEY_SPACE,  "Space → Cross",    8, 0x20);
-    cfg.mappings << btn(KEY_E,      "E → Square",       8, 0x10);
-    cfg.mappings << btn(KEY_R,      "R → Triangle",     8, 0x80);
-    cfg.mappings << btn(KEY_Q,      "Q → Circle",       8, 0x40);
+    cfg.mappings << btn(KEY_SPACE,  "Cross",    8, 0x20);
+    cfg.mappings << btn(KEY_E,      "Square",   8, 0x10);
+    cfg.mappings << btn(KEY_R,      "Triangle", 8, 0x80);
+    cfg.mappings << btn(KEY_Q,      "Circle",   8, 0x40);
 
     // Shoulder buttons
-    cfg.mappings << btn(KEY_LEFTSHIFT,  "LShift → R1",  9, 0x02);
-    cfg.mappings << btn(KEY_LEFTCTRL,   "LCtrl → L1",   9, 0x01);
+    cfg.mappings << btn(KEY_LEFTSHIFT,  "R1", 9, 0x02);
+    cfg.mappings << btn(KEY_LEFTCTRL,   "L1", 9, 0x01);
 
     // Trigger analog (mouse buttons)
     {
         kb::Mapping m;
         m.enabled = true;
-        m.label = "Mouse Left → R2";
+        m.label = "R2";
         m.input_kind = K::Key;
         m.input_code = BTN_LEFT;
         m.output_kind = O::AxisFixed;
@@ -95,7 +109,7 @@ static kb::Config make_defaults()
     {
         kb::Mapping m;
         m.enabled = true;
-        m.label = "Mouse Right → L2";
+        m.label = "L2";
         m.input_kind = K::Key;
         m.input_code = BTN_RIGHT;
         m.output_kind = O::AxisFixed;
@@ -105,17 +119,17 @@ static kb::Config make_defaults()
     }
 
     // D-pad
-    cfg.mappings << dpad(KEY_UP,    "Up → DPad Up",      0x01);
-    cfg.mappings << dpad(KEY_DOWN,  "Down → DPad Down",  0x04);
-    cfg.mappings << dpad(KEY_LEFT,  "Left → DPad Left",  0x08);
-    cfg.mappings << dpad(KEY_RIGHT, "Right → DPad Right",0x02);
+    cfg.mappings << dpad(KEY_UP,    "DPad Up",    0x01);
+    cfg.mappings << dpad(KEY_DOWN,  "DPad Down",  0x04);
+    cfg.mappings << dpad(KEY_LEFT,  "DPad Left",  0x08);
+    cfg.mappings << dpad(KEY_RIGHT, "DPad Right", 0x02);
 
     // Misc
-    cfg.mappings << btn(KEY_F,   "F → Options",   9, 0x20);
-    cfg.mappings << btn(KEY_G,   "G → Create",    9, 0x10);
-    cfg.mappings << btn(KEY_ESC, "Esc → PS",     10, 0x01);
-    cfg.mappings << btn(KEY_F1,  "F1 → L3",       9, 0x40);
-    cfg.mappings << btn(KEY_F2,  "F2 → R3",       9, 0x80);
+    cfg.mappings << btn(KEY_F,   "Options", 9, 0x20);
+    cfg.mappings << btn(KEY_G,   "Create",  9, 0x10);
+    cfg.mappings << btn(KEY_ESC, "PS",     10, 0x01);
+    cfg.mappings << btn(KEY_F1,  "L3",      9, 0x40);
+    cfg.mappings << btn(KEY_F2,  "R3",      9, 0x80);
 
     return cfg;
 }
@@ -142,11 +156,8 @@ static kb::OutputKind parseOutputKind(const QString& s) {
     return kb::OutputKind::Button;
 }
 
-void save(const kb::Config& config)
+static QJsonObject config_to_json(const kb::Config& config)
 {
-    const QString path = config_path();
-    QDir().mkpath(QFileInfo(path).absolutePath());
-
     QJsonArray arr;
     for (const auto& m : config.mappings) {
         QJsonObject o;
@@ -173,24 +184,11 @@ void save(const kb::Config& config)
     QJsonObject root;
     root["mappings"]    = arr;
     root["mouse_stick"] = ms;
-
-    QFile f(path);
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(root).toJson());
+    return root;
 }
 
-kb::Config load()
+static kb::Config json_to_config(const QJsonObject& root)
 {
-    QFile f(config_path());
-    if (!f.open(QIODevice::ReadOnly))
-        return make_defaults();
-
-    const auto doc = QJsonDocument::fromJson(f.readAll());
-    if (!doc.isObject())
-        return make_defaults();
-
-    const auto root = doc.object();
-
     kb::Config cfg;
     for (const auto& v : root["mappings"].toArray()) {
         const QJsonObject o = v.toObject();
@@ -208,17 +206,102 @@ kb::Config load()
         cfg.mappings << m;
     }
 
-    if (cfg.mappings.isEmpty())
-        return make_defaults();
-
     const auto ms = root["mouse_stick"].toObject();
     cfg.mouse_stick.enabled         = ms["enabled"].toBool(true);
     cfg.mouse_stick.use_right_stick = ms["use_right_stick"].toBool(true);
     cfg.mouse_stick.sensitivity_x   = static_cast<float>(ms["sensitivity_x"].toDouble(0.25));
     cfg.mouse_stick.sensitivity_y   = static_cast<float>(ms["sensitivity_y"].toDouble(0.25));
     cfg.mouse_stick.touchpad_key    = ms["touchpad_key"].toInt(0);
-
     return cfg;
+}
+
+void save(const kb::Config& config)
+{
+    const QString path = config_path();
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QFile f(path);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        f.write(QJsonDocument(config_to_json(config)).toJson());
+}
+
+kb::Config load()
+{
+    QFile f(config_path());
+    if (!f.open(QIODevice::ReadOnly))
+        return make_defaults();
+
+    const auto doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isObject())
+        return make_defaults();
+
+    auto cfg = json_to_config(doc.object());
+    if (cfg.mappings.isEmpty())
+        return make_defaults();
+    return cfg;
+}
+
+// ── Profiles ──────────────────────────────────────────────────────────────────
+
+QStringList listProfiles()
+{
+    QDir dir(profiles_dir());
+    QStringList names;
+    for (const QString& fn : dir.entryList({"*.json"}, QDir::Files, QDir::Name))
+        names << fn.chopped(5);  // strip ".json"
+    return names;
+}
+
+void saveProfile(const kb::Config& config, const QString& name)
+{
+    const QString dir = profiles_dir();
+    QDir().mkpath(dir);
+    const QString path = dir + "/" + sanitize_name(name) + ".json";
+    QFile f(path);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        f.write(QJsonDocument(config_to_json(config)).toJson());
+}
+
+kb::Config loadProfile(const QString& name)
+{
+    QFile f(profiles_dir() + "/" + sanitize_name(name) + ".json");
+    if (!f.open(QIODevice::ReadOnly))
+        return make_defaults();
+
+    const auto doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isObject())
+        return make_defaults();
+
+    auto cfg = json_to_config(doc.object());
+    if (cfg.mappings.isEmpty())
+        return make_defaults();
+    return cfg;
+}
+
+kb::Config loadFromPath(const QString& path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly))
+        return make_defaults();
+
+    const auto doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isObject())
+        return make_defaults();
+
+    auto cfg = json_to_config(doc.object());
+    if (cfg.mappings.isEmpty())
+        return make_defaults();
+    return cfg;
+}
+
+void deleteProfile(const QString& name)
+{
+    QFile::remove(profiles_dir() + "/" + sanitize_name(name) + ".json");
+    QFile::remove(profiles_dir() + "/" + sanitize_name(name) + ".png");
+}
+
+QString profileCoverPath(const QString& name)
+{
+    return profiles_dir() + "/" + sanitize_name(name) + ".png";
 }
 
 // ── Key name table ─────────────────────────────────────────────────────────────

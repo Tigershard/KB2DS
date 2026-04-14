@@ -9,6 +9,7 @@
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QTableWidget>
@@ -102,30 +103,6 @@ KeyCaptureDialog::KeyCaptureDialog(QWidget* parent)
     hint_label_->setStyleSheet("font-size: 13px; color: #e0e0f0;");
     layout->addWidget(hint_label_);
 
-    layout->addSpacing(8);
-
-    auto* mouse_label = new QLabel("Or select a mouse button:", this);
-    mouse_label->setStyleSheet("color: #7878aa; font-size: 11px;");
-    layout->addWidget(mouse_label);
-
-    auto* btn_row = new QHBoxLayout();
-    auto* mleft   = new QPushButton("Mouse Left",   this);
-    auto* mright  = new QPushButton("Mouse Right",  this);
-    auto* mmid    = new QPushButton("Mouse Middle", this);
-
-    const QString btn_style =
-        "QPushButton { background: #1c1c2e; color: #e0e0f0; border: 1px solid #2a2a45;"
-        "border-radius: 6px; padding: 4px 8px; font-size: 11px; }"
-        "QPushButton:hover { border-color: #00c9a7; color: #00c9a7; }";
-    mleft->setStyleSheet(btn_style);
-    mright->setStyleSheet(btn_style);
-    mmid->setStyleSheet(btn_style);
-
-    btn_row->addWidget(mleft);
-    btn_row->addWidget(mright);
-    btn_row->addWidget(mmid);
-    layout->addLayout(btn_row);
-
     layout->addStretch();
 
     auto* cancel_btn = new QPushButton("Cancel", this);
@@ -135,9 +112,6 @@ KeyCaptureDialog::KeyCaptureDialog(QWidget* parent)
         "QPushButton:hover { background: #e05252; color: #fff; }");
     layout->addWidget(cancel_btn, 0, Qt::AlignRight);
 
-    connect(mleft,  &QPushButton::clicked, this, [this]() { set_mouse_button(BTN_LEFT,   "Mouse Left");   });
-    connect(mright, &QPushButton::clicked, this, [this]() { set_mouse_button(BTN_RIGHT,  "Mouse Right");  });
-    connect(mmid,   &QPushButton::clicked, this, [this]() { set_mouse_button(BTN_MIDDLE, "Mouse Middle"); });
     connect(cancel_btn, &QPushButton::clicked, this, &QDialog::reject);
 
     setFocusPolicy(Qt::StrongFocus);
@@ -241,7 +215,7 @@ MappingEditorWidget::MappingEditorWidget(QWidget* parent)
     inner->setSpacing(6);
 
     table_ = new QTableWidget(0, 4, this);
-    table_->setHorizontalHeaderLabels({"", "Input Key", "→", "DS5 Output"});
+    table_->setHorizontalHeaderLabels({"", "DS5 Output", "→", "Input Key"});
     table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
     table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     table_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
@@ -263,6 +237,7 @@ MappingEditorWidget::MappingEditorWidget(QWidget* parent)
     auto* btn_row = new QHBoxLayout();
     add_btn_    = new QPushButton("+ Add Mapping",   this);
     delete_btn_ = new QPushButton("Delete Selected", this);
+    save_btn_   = new QPushButton("Save Profile",    this);
 
     add_btn_->setStyleSheet(
         "QPushButton { background: #00c9a7; color: #0a0a1a; border: none;"
@@ -274,21 +249,40 @@ MappingEditorWidget::MappingEditorWidget(QWidget* parent)
         "border-radius: 6px; padding: 5px 12px; font-size: 12px; }"
         "QPushButton:hover { background: #e05252; color: #fff; }"
         "QPushButton:disabled { background: #1e1e35; color: #4a4a6a; border-color: #2a2a45; }");
+    save_btn_->setStyleSheet(
+        "QPushButton { background: #1e1e35; color: #4a4a6a; border: 1px solid #2a2a45;"
+        "border-radius: 6px; padding: 5px 12px; font-size: 12px; }"
+        "QPushButton:enabled { background: #1a2a1a; color: #00c9a7; border-color: #00c9a7; }"
+        "QPushButton:enabled:hover { background: #00c9a7; color: #0a0a1a; }");
+    save_btn_->setEnabled(false);
 
     btn_row->addWidget(add_btn_);
     btn_row->addWidget(delete_btn_);
     btn_row->addStretch();
+    btn_row->addWidget(save_btn_);
     inner->addLayout(btn_row);
+
+    table_->setContextMenuPolicy(Qt::CustomContextMenu);
 
     connect(add_btn_,    &QPushButton::clicked, this, &MappingEditorWidget::on_add_clicked);
     connect(delete_btn_, &QPushButton::clicked, this, &MappingEditorWidget::on_delete_clicked);
-    connect(table_, &QTableWidget::cellChanged, this, &MappingEditorWidget::on_cell_changed);
+    connect(save_btn_,   &QPushButton::clicked, this, &MappingEditorWidget::save_requested);
+    connect(table_, &QTableWidget::cellChanged,       this, &MappingEditorWidget::on_cell_changed);
+    connect(table_, &QTableWidget::cellDoubleClicked, this, &MappingEditorWidget::on_cell_double_clicked);
+    connect(table_, &QTableWidget::customContextMenuRequested, this, &MappingEditorWidget::on_context_menu);
+
+    // Enable Save button whenever an unsaved change is made (while not running)
+    connect(this, &MappingEditorWidget::config_changed, this, [this]() {
+        dirty_ = true;
+        save_btn_->setEnabled(add_btn_->isEnabled());  // disabled while running
+    });
 }
 
 void MappingEditorWidget::set_config(const kb::Config& config)
 {
     mappings_ = config.mappings;
     rebuild_table();
+    mark_saved();
 }
 
 kb::Config MappingEditorWidget::config() const
@@ -302,6 +296,19 @@ void MappingEditorWidget::set_running(bool running)
 {
     add_btn_->setEnabled(!running);
     delete_btn_->setEnabled(!running);
+    save_btn_->setEnabled(!running && dirty_);
+}
+
+void MappingEditorWidget::mark_saved()
+{
+    dirty_ = false;
+    save_btn_->setEnabled(false);
+}
+
+void MappingEditorWidget::mark_dirty()
+{
+    dirty_ = true;
+    save_btn_->setEnabled(add_btn_->isEnabled());  // disabled while running
 }
 
 void MappingEditorWidget::retranslate(bool /*ru*/)
@@ -333,13 +340,31 @@ void MappingEditorWidget::add_table_row(int row, const kb::Mapping& m)
         }
     });
 
-    // Col 1: input key name
-    const QString key_name = (m.input_kind == kb::InputKind::Key)
-        ? MappingStorage::keyName(m.input_code)
-        : QString("Mouse Axis %1").arg(m.input_code);
-    auto* key_item = new QTableWidgetItem(key_name);
-    key_item->setTextAlignment(Qt::AlignCenter);
-    table_->setItem(row, 1, key_item);
+    // Col 1: DS5 output name — match against known outputs first for a clean name,
+    // fall back to the stored label (stripping any "Key → " prefix for old entries)
+    QString out_name;
+    for (int i = 0; i < kb::DS5_OUTPUT_COUNT; ++i) {
+        const auto& o = kb::DS5_OUTPUTS[i];
+        if (m.output_kind == o.kind &&
+            m.btn_byte    == o.btn_byte &&
+            m.btn_mask    == o.btn_mask &&
+            m.dpad_bit    == o.dpad_bit &&
+            m.axis_offset == o.axis_offset &&
+            m.axis_value  == o.axis_value)
+        {
+            out_name = QString::fromLatin1(o.name);
+            break;
+        }
+    }
+    if (out_name.isEmpty()) {
+        out_name = m.label;
+        const int arrow_pos = out_name.indexOf(" \u2192 ");
+        if (arrow_pos >= 0)
+            out_name = out_name.mid(arrow_pos + 3);
+    }
+    auto* out_item = new QTableWidgetItem(out_name);
+    out_item->setTextAlignment(Qt::AlignCenter);
+    table_->setItem(row, 1, out_item);
 
     // Col 2: arrow
     auto* arrow = new QTableWidgetItem("→");
@@ -347,40 +372,26 @@ void MappingEditorWidget::add_table_row(int row, const kb::Mapping& m)
     arrow->setForeground(QColor(0x00, 0xc9, 0xa7));
     table_->setItem(row, 2, arrow);
 
-    // Col 3: output name (derive from mapping fields)
-    QString out_name = m.label;
-    if (out_name.isEmpty()) {
-        // Derive name from output fields
-        for (int i = 0; i < kb::DS5_OUTPUT_COUNT; ++i) {
-            const auto& o = kb::DS5_OUTPUTS[i];
-            if (m.output_kind == o.kind &&
-                m.btn_byte    == o.btn_byte &&
-                m.btn_mask    == o.btn_mask &&
-                m.dpad_bit    == o.dpad_bit &&
-                m.axis_offset == o.axis_offset &&
-                m.axis_value  == o.axis_value)
-            {
-                out_name = QString::fromLatin1(o.name);
-                break;
-            }
-        }
-    }
-    auto* out_item = new QTableWidgetItem(out_name);
-    out_item->setTextAlignment(Qt::AlignCenter);
-    table_->setItem(row, 3, out_item);
+    // Col 3: input key name
+    const QString key_name = (m.input_kind == kb::InputKind::Key)
+        ? MappingStorage::keyName(m.input_code)
+        : QString("Mouse Axis %1").arg(m.input_code);
+    auto* key_item = new QTableWidgetItem(key_name);
+    key_item->setTextAlignment(Qt::AlignCenter);
+    table_->setItem(row, 3, key_item);
 
     table_->setRowHeight(row, 28);
 }
 
 void MappingEditorWidget::on_add_clicked()
 {
-    // Step 1: capture key
-    KeyCaptureDialog kd(this);
-    if (kd.exec() != QDialog::Accepted || kd.captured_evdev_code() < 0) return;
-
-    // Step 2: pick DS5 output
+    // Step 1: pick DS5 output
     OutputPickerDialog od(this);
     if (od.exec() != QDialog::Accepted || od.selected_output_index() < 0) return;
+
+    // Step 2: capture key
+    KeyCaptureDialog kd(this);
+    if (kd.exec() != QDialog::Accepted || kd.captured_evdev_code() < 0) return;
 
     const int idx = od.selected_output_index();
     const auto& out = kb::DS5_OUTPUTS[idx];
@@ -395,9 +406,7 @@ void MappingEditorWidget::on_add_clicked()
     m.dpad_bit    = out.dpad_bit;
     m.axis_offset = out.axis_offset;
     m.axis_value  = out.axis_value;
-    m.label       = QString("%1 → %2")
-                    .arg(kd.captured_name())
-                    .arg(QString::fromLatin1(out.name));
+    m.label       = QString::fromLatin1(out.name);
 
     mappings_.append(m);
     rebuild_table();
@@ -417,5 +426,73 @@ void MappingEditorWidget::on_delete_clicked()
 void MappingEditorWidget::on_cell_changed(int /*row*/, int /*col*/)
 {
     if (updating_) return;
+    emit config_changed();
+}
+
+void MappingEditorWidget::on_cell_double_clicked(int row, int col)
+{
+    if (row < 0 || row >= mappings_.size()) return;
+    if (col == 1) remap_output(row);
+    else if (col == 3) remap_input(row);
+}
+
+void MappingEditorWidget::on_context_menu(const QPoint& pos)
+{
+    const int row = table_->rowAt(pos.y());
+    if (row < 0 || row >= mappings_.size()) return;
+
+    const QString menu_style =
+        "QMenu { background: #1a1a2e; color: #e0e0f0; border: 1px solid #2a2a45; }"
+        "QMenu::item:selected { background: #2a2a45; }"
+        "QMenu::item:disabled { color: #4a4a6a; }";
+
+    QMenu menu(this);
+    menu.setStyleSheet(menu_style);
+    auto* act_input  = menu.addAction("Change Input Key");
+    auto* act_output = menu.addAction("Change DS5 Output");
+    menu.addSeparator();
+    auto* act_delete = menu.addAction("Delete");
+    act_delete->setEnabled(!add_btn_->isEnabled() == false);  // disabled while running
+
+    const bool running = !add_btn_->isEnabled();
+    act_input->setEnabled(!running);
+    act_output->setEnabled(!running);
+    act_delete->setEnabled(!running);
+
+    auto* chosen = menu.exec(table_->viewport()->mapToGlobal(pos));
+    if      (chosen == act_input)  remap_input(row);
+    else if (chosen == act_output) remap_output(row);
+    else if (chosen == act_delete) {
+        mappings_.removeAt(row);
+        rebuild_table();
+        emit config_changed();
+    }
+}
+
+void MappingEditorWidget::remap_input(int row)
+{
+    KeyCaptureDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted || dlg.captured_evdev_code() < 0) return;
+
+    mappings_[row].input_kind = kb::InputKind::Key;
+    mappings_[row].input_code = dlg.captured_evdev_code();
+    rebuild_table();
+    emit config_changed();
+}
+
+void MappingEditorWidget::remap_output(int row)
+{
+    OutputPickerDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted || dlg.selected_output_index() < 0) return;
+
+    const auto& out = kb::DS5_OUTPUTS[dlg.selected_output_index()];
+    mappings_[row].output_kind = out.kind;
+    mappings_[row].btn_byte    = out.btn_byte;
+    mappings_[row].btn_mask    = out.btn_mask;
+    mappings_[row].dpad_bit    = out.dpad_bit;
+    mappings_[row].axis_offset = out.axis_offset;
+    mappings_[row].axis_value  = out.axis_value;
+    mappings_[row].label       = QString::fromLatin1(out.name);
+    rebuild_table();
     emit config_changed();
 }
