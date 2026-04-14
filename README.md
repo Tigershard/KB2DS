@@ -1,4 +1,4 @@
-# kb-to-ds5
+# KB2DS
 
 A Linux GUI application that lets you play PS5 Remote Play games using a keyboard and mouse by emulating a DualSense controller.
 
@@ -72,25 +72,7 @@ sudo usermod -aG input $USER
 4. Click **Start**. Your keyboard and mouse are now captured and translated to DualSense input.
 5. Press the **Pause** key on your keyboard to temporarily release your devices and regain normal mouse/keyboard control.
 
-## Default mappings
-
-| Input | DualSense output |
-|-------|-----------------|
-| W / A / S / D | Left stick |
-| Mouse movement | Right stick |
-| Mouse left click | R2 |
-| Mouse right click | L2 |
-| Space | Cross (X) |
-| E | Square |
-| Q | Circle |
-| R | Triangle |
-| LShift | R1 |
-| LCtrl | L1 |
-| Arrow keys | D-pad |
-| F | Options |
-| G | Create |
-| Esc | PS button |
-| F1 | L3 |
+## Mappings
 
 All mappings are fully editable in the **Mappings** tab. Any key or mouse button can be bound to any button, analog trigger, or d-pad direction.
 
@@ -100,9 +82,11 @@ Mouse movement is mapped to the right analog stick by default. Sensitivity can b
 
 You can also switch mouse movement to the left stick, or bind a key to enter touchpad mode (moves the DualSense touchpad cursor instead of a stick).
 
-## Physical DualSense passthrough
+## Physical DualSense detected at startup
 
-If a physical DualSense controller (USB) is connected when kb-to-ds5 starts, it reads the controller's HID report descriptor and uses it for the virtual device. This improves compatibility with games that inspect the descriptor. If no physical controller is present, a built-in descriptor is used as a fallback.
+If a physical DualSense controller (USB) is connected when kb-to-ds5 starts, it reads the controller's HID report descriptor and uses it for the virtual device instead of the built-in fallback descriptor. This improves compatibility with games or the kernel driver that inspect the descriptor closely.
+
+The physical controller's inputs are **not** forwarded — only its descriptor is borrowed. All input to the virtual device still comes exclusively from your keyboard and mouse mappings.
 
 ## Acknowledgements
 
