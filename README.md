@@ -32,14 +32,14 @@ sudo dnf install cmake qt6-qtbase-devel gcc-c++
 ## Building
 
 ```bash
-git clone https://github.com/Tigershard/kb-to-ds5.git
-cd kb-to-ds5
+git clone https://github.com/Tigershard/KB2DS.git
+cd KB2DS
 mkdir build && cd build
 cmake ..
 cmake --build .
 ```
 
-The binary is at `build/kb-to-ds5`.
+The binary is at `build/KB2DS`.
 
 ### Optional: system install
 
@@ -55,7 +55,7 @@ You need to give your user permission to grab input devices and create virtual H
 
 ```bash
 # Install udev rules
-sudo cp 99-kb-to-ds5.rules /etc/udev/rules.d/
+sudo cp 99-KB2DS.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
 
 # Add yourself to the input group
@@ -67,7 +67,7 @@ sudo usermod -aG input $USER
 ## Usage
 
 1. Start PS5 Remote Play and connect to your console.
-2. Launch `kb-to-ds5` (or find it in your application menu if installed).
+2. Launch `KB2DS` (or find it in your application menu if installed).
 3. Select the keyboard and mouse devices to grab from the device list.
 4. Click **Start**. Your keyboard and mouse are now captured and translated to DualSense input.
 5. Press the **Pause** key on your keyboard to temporarily release your devices and regain normal mouse/keyboard control.
@@ -84,7 +84,7 @@ You can also switch mouse movement to the left stick, or bind a key to enter tou
 
 ## Physical DualSense detected at startup
 
-If a physical DualSense controller (USB) is connected when kb-to-ds5 starts, it reads the controller's HID report descriptor and uses it for the virtual device instead of the built-in fallback descriptor. This improves compatibility with games or the kernel driver that inspect the descriptor closely.
+If a physical DualSense controller (USB) is connected when KB2DS starts, it reads the controller's HID report descriptor and uses it for the virtual device instead of the built-in fallback descriptor. This improves compatibility with games or the kernel driver that inspect the descriptor closely.
 
 The physical controller's inputs are **not** forwarded — only its descriptor is borrowed. All input to the virtual device still comes exclusively from your keyboard and mouse mappings.
 
