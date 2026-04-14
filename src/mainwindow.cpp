@@ -250,7 +250,7 @@ void MainWindow::setup_ui()
     auto* sens_row = new QHBoxLayout();
     sens_row->addWidget(new QLabel("Sensitivity X:", settings_tab));
     sens_x_spin_ = new QDoubleSpinBox(settings_tab);
-    sens_x_spin_->setRange(0.01, 5.0);
+    sens_x_spin_->setRange(0.01, 10.0);
     sens_x_spin_->setSingleStep(0.05);
     sens_x_spin_->setDecimals(2);
     sens_x_spin_->setValue(0.25);
@@ -259,7 +259,7 @@ void MainWindow::setup_ui()
     sens_row->addSpacing(12);
     sens_row->addWidget(new QLabel("Y:", settings_tab));
     sens_y_spin_ = new QDoubleSpinBox(settings_tab);
-    sens_y_spin_->setRange(0.01, 5.0);
+    sens_y_spin_->setRange(0.01, 10.0);
     sens_y_spin_->setSingleStep(0.05);
     sens_y_spin_->setDecimals(2);
     sens_y_spin_->setValue(0.25);
