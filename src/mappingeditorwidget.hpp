@@ -66,6 +66,8 @@ public:
     void mark_saved();
     // Call when an external change (e.g. mouse sensitivity) should enable Save
     void mark_dirty();
+    // Rebuild the table (e.g. to pick up new theme colours for arrow items)
+    void refresh_display();
 
 signals:
     void config_changed();

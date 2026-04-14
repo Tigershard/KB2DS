@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow Rules
+
+- **Never commit or push without explicit user approval.** Always stop after making code changes and wait for the user to test before committing. Do not combine coding and committing in the same response unless the user explicitly asks for both in one request.
+
 ## Project Overview
 
 **kb-to-ds5** is a Linux Qt6 GUI application that converts keyboard and mouse input into DualSense (PS5 controller) HID events. It creates a virtual `/dev/uhid` device and maps evdev input to DualSense button/axis values.
@@ -31,7 +35,7 @@ There are no automated tests or lint tools configured. Compiler warnings (`-Wall
 The user must be in the `input` group and the udev rules must be installed:
 
 ```bash
-sudo cp 99-kb-to-ds5.rules /etc/udev/rules.d/
+sudo cp 99-KB2DS.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
 sudo usermod -aG input $USER
 # Log out and back in

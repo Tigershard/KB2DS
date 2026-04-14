@@ -1,4 +1,5 @@
 #include "saveprofiledialog.hpp"
+#include "apptheme.hpp"
 
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
@@ -27,9 +28,6 @@ SaveProfileDialog::SaveProfileDialog(IgdbClient* igdb,
     auto* name_row = new QHBoxLayout();
     name_row->addWidget(new QLabel("Profile name:", this));
     name_edit_ = new QLineEdit(initial_name, this);
-    name_edit_->setStyleSheet(
-        "QLineEdit { background: #0d0d1e; color: #e0e0f0; border: 1px solid #2a2a45;"
-        "border-radius: 4px; padding: 4px 8px; font-size: 12px; }");
     name_row->addWidget(name_edit_, 1);
     layout->addLayout(name_row);
 
@@ -39,7 +37,8 @@ SaveProfileDialog::SaveProfileDialog(IgdbClient* igdb,
         can_search ? "Type a name to search for game cover art (optional)."
                    : "Add IGDB credentials in Settings to enable cover art search.",
         this);
-    status_label_->setStyleSheet("color: #7878aa; font-size: 11px;");
+    status_label_->setStyleSheet(
+        QString("color: %1; font-size: 11px;").arg(Themes::current().textm));
     layout->addWidget(status_label_);
 
     // Thumbnail strip
@@ -48,14 +47,7 @@ SaveProfileDialog::SaveProfileDialog(IgdbClient* igdb,
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scroll->setWidgetResizable(true);
-    scroll->setStyleSheet(
-        "QScrollArea { background: #0d0d1e; border: 1px solid #2a2a45; border-radius: 4px; }"
-        "QScrollBar:horizontal { background: #0d0d1e; height: 8px; border: none; }"
-        "QScrollBar::handle:horizontal { background: #2a2a45; border-radius: 4px; min-width: 20px; }"
-        "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }");
-
     thumb_container_ = new QWidget();
-    thumb_container_->setStyleSheet("background: #0d0d1e;");
     thumb_layout_ = new QHBoxLayout(thumb_container_);
     thumb_layout_->setContentsMargins(6, 4, 6, 4);
     thumb_layout_->setSpacing(8);
@@ -67,14 +59,8 @@ SaveProfileDialog::SaveProfileDialog(IgdbClient* igdb,
     auto* buttons = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->button(QDialogButtonBox::Ok)->setText("Save");
-    buttons->button(QDialogButtonBox::Ok)->setStyleSheet(
-        "QPushButton { background: #00c9a7; color: #0a0a1a; border: none;"
-        "border-radius: 6px; padding: 4px 16px; font-weight: bold; }"
-        "QPushButton:hover { background: #00e0bb; }");
-    buttons->button(QDialogButtonBox::Cancel)->setStyleSheet(
-        "QPushButton { background: #1e1220; color: #e05252; border: 1px solid #5a2a2a;"
-        "border-radius: 6px; padding: 4px 16px; }"
-        "QPushButton:hover { background: #e05252; color: #fff; }");
+    buttons->button(QDialogButtonBox::Ok)->setObjectName("OkBtn");
+    buttons->button(QDialogButtonBox::Cancel)->setObjectName("DangerBtn");
     layout->addWidget(buttons);
 
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -98,7 +84,8 @@ SaveProfileDialog::SaveProfileDialog(IgdbClient* igdb,
         connect(igdb_, &IgdbClient::cover_ready,   this, &SaveProfileDialog::on_cover_ready);
         connect(igdb_, &IgdbClient::error, this, [this](const QString& msg) {
             status_label_->setText("Error: " + msg);
-            status_label_->setStyleSheet("color: #e05252; font-size: 11px;");
+            status_label_->setStyleSheet(
+                QString("color: %1; font-size: 11px;").arg(Themes::current().danger));
         });
     }
 
@@ -123,7 +110,8 @@ void SaveProfileDialog::on_search_triggered()
     if (q.isEmpty() || !igdb_) return;
     clear_thumbnails();
     status_label_->setText("Searching...");
-    status_label_->setStyleSheet("color: #7878aa; font-size: 11px;");
+    status_label_->setStyleSheet(
+        QString("color: %1; font-size: 11px;").arg(Themes::current().textm));
     igdb_->search(q);
 }
 
@@ -145,9 +133,13 @@ void SaveProfileDialog::on_results_ready(const QList<IgdbClient::GameResult>& re
         auto* btn = new QPushButton(thumb_container_);
         btn->setFixedSize(66, 94);
         btn->setToolTip(results[i].name);
-        btn->setStyleSheet(
-            "QPushButton { background: #1a1a2e; border: 2px solid #2a2a45; border-radius: 4px; }"
-            "QPushButton:hover { border-color: #7878aa; }");
+        {
+            const AppTheme& t = Themes::current();
+            btn->setStyleSheet(QString(
+                "QPushButton { background: %1; border: 2px solid %2; border-radius: 4px; }"
+                "QPushButton:hover { border-color: %3; }")
+                .arg(t.bg3, t.border, t.textm));
+        }
         // Insert before the trailing stretch
         thumb_layout_->insertWidget(thumb_layout_->count() - 1, btn);
         thumb_buttons_.append(btn);
@@ -173,12 +165,19 @@ void SaveProfileDialog::select_cover(int idx)
 {
     selected_idx_ = idx;
 
+    const AppTheme& t = Themes::current();
     for (int i = 0; i < thumb_buttons_.size(); ++i) {
         const bool sel = (i == idx);
-        thumb_buttons_[i]->setStyleSheet(sel
-            ? "QPushButton { background: #1a1a2e; border: 2px solid #00c9a7; border-radius: 4px; }"
-            : "QPushButton { background: #1a1a2e; border: 2px solid #2a2a45; border-radius: 4px; }"
-              "QPushButton:hover { border-color: #7878aa; }");
+        if (sel) {
+            thumb_buttons_[i]->setStyleSheet(QString(
+                "QPushButton { background: %1; border: 2px solid %2; border-radius: 4px; }")
+                .arg(t.bg3, t.accent));
+        } else {
+            thumb_buttons_[i]->setStyleSheet(QString(
+                "QPushButton { background: %1; border: 2px solid %2; border-radius: 4px; }"
+                "QPushButton:hover { border-color: %3; }")
+                .arg(t.bg3, t.border, t.textm));
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 #include "mainwindow.hpp"
+#include "apptheme.hpp"
 #include "controllermapwidget.hpp"
 #include "igdbclient.hpp"
 #include "inputworker.hpp"
@@ -28,6 +29,7 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QSystemTrayIcon>
 #include <QTabWidget>
 #include <QTimer>
@@ -38,13 +40,13 @@
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
-    , settings_("kb-to-ds5", "kb-to-ds5")
+    , settings_("KB2DS", "KB2DS")
 {
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
     setAttribute(Qt::WA_TranslucentBackground);
-    setWindowTitle("kb-to-ds5");
+    setWindowTitle("KB2DS");
     setMinimumSize(480, 350);
-    resize(1080, 720);
+    resize(1920, 1080);
 
     qApp->installEventFilter(this);
 
@@ -85,12 +87,6 @@ void MainWindow::setup_ui()
     setCentralWidget(central);
     central->setObjectName("CW");
     central->setAttribute(Qt::WA_StyledBackground);
-    central->setStyleSheet(
-        "QWidget#CW {"
-        "  background: #12121f;"
-        "  border: 1px solid #2a2a45;"
-        "  border-radius: 10px;"
-        "}");
 
     auto* outer = new QVBoxLayout(central);
     outer->setSpacing(0);
@@ -101,13 +97,6 @@ void MainWindow::setup_ui()
     custom_title_bar_->setFixedHeight(42);
     custom_title_bar_->setObjectName("TB");
     custom_title_bar_->setAttribute(Qt::WA_StyledBackground);
-    custom_title_bar_->setStyleSheet(
-        "QWidget#TB {"
-        "  background: #0d0d1e;"
-        "  border-top-left-radius: 10px;"
-        "  border-top-right-radius: 10px;"
-        "  border-bottom: 1px solid #2a2a45;"
-        "}");
     custom_title_bar_->installEventFilter(this);
 
     auto* tb = new QHBoxLayout(custom_title_bar_);
@@ -115,25 +104,18 @@ void MainWindow::setup_ui()
     tb->setSpacing(0);
 
     title_label_ = new QLabel("  Keyboard → DualSense", custom_title_bar_);
-    title_label_->setStyleSheet(
-        "font-size: 13px; font-weight: bold; color: #e0e0f0; background: transparent;");
+    title_label_->setObjectName("TitleLabel");
     tb->addWidget(title_label_);
     tb->addStretch();
 
     auto* min_btn = new QPushButton("—", custom_title_bar_);
     min_btn->setFixedSize(34, 28);
-    min_btn->setStyleSheet(
-        "QPushButton { background: transparent; color: #7878aa; border: none;"
-        "font-size: 14px; border-radius: 4px; }"
-        "QPushButton:hover { background: #2a2a45; color: #e0e0f0; }");
+    min_btn->setObjectName("MinBtn");
     tb->addWidget(min_btn);
 
     auto* close_btn = new QPushButton("✕", custom_title_bar_);
     close_btn->setFixedSize(34, 28);
-    close_btn->setStyleSheet(
-        "QPushButton { background: transparent; color: #7878aa; border: none;"
-        "font-size: 11px; border-radius: 4px; }"
-        "QPushButton:hover { background: #c0392b; color: #ffffff; }");
+    close_btn->setObjectName("CloseBtn");
     tb->addWidget(close_btn);
     tb->addSpacing(2);
 
@@ -152,21 +134,18 @@ void MainWindow::setup_ui()
     status_layout->setSpacing(2);
 
     status_label_ = new QLabel("Stopped", content);
-    status_label_->setStyleSheet("font-size: 13px; color: #e0e0f0; background: transparent;");
+    status_label_->setObjectName("StatusLabel");
     status_layout->addWidget(status_label_);
 
     stats_label_ = new QLabel("Reports: 0", content);
-    stats_label_->setStyleSheet("color: #7878aa; font-size: 11px; background: transparent;");
+    stats_label_->setObjectName("StatsLabel");
     status_layout->addWidget(stats_label_);
 
     // Profile display — right of the status group (clickable: opens profile picker)
     profile_box_ = new QWidget(content);
-    profile_box_->setFixedWidth(110);
+    profile_box_->setFixedSize(110, 150);
     profile_box_->setObjectName("ProfileBox");
     profile_box_->setAttribute(Qt::WA_StyledBackground);
-    profile_box_->setStyleSheet(
-        "QWidget#ProfileBox { background: #0d0d1e; border: 1px solid #2a2a45; border-radius: 6px; }"
-        "QWidget#ProfileBox:hover { border-color: #00c9a7; background: #0f0f26; }");
     profile_box_->setCursor(Qt::PointingHandCursor);
     profile_box_->installEventFilter(this);
 
@@ -175,10 +154,9 @@ void MainWindow::setup_ui()
     pb_layout->setSpacing(0);
 
     profile_display_label_ = new QLabel(profile_box_);
+    profile_display_label_->setObjectName("ProfileDisplayLabel");
     profile_display_label_->setAlignment(Qt::AlignCenter);
     profile_display_label_->setWordWrap(true);
-    profile_display_label_->setStyleSheet(
-        "color: #7878aa; font-size: 10px; background: transparent;");
     profile_display_label_->setText("No Profile");
     pb_layout->addWidget(profile_display_label_);
 
@@ -200,23 +178,9 @@ void MainWindow::setup_ui()
     pause_btn_->setEnabled(false);
     stop_btn_->setEnabled(false);
 
-    start_btn_->setStyleSheet(
-        "QPushButton { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-        "stop:0 #00c9a7, stop:1 #00a896); color: #0a0a1a; border: none;"
-        "border-radius: 8px; font-weight: bold; font-size: 13px; }"
-        "QPushButton:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-        "stop:0 #00e0bb, stop:1 #00c9a7); }"
-        "QPushButton:disabled { background: #1e1e35; color: #4a4a6a; }");
-    pause_btn_->setStyleSheet(
-        "QPushButton { background: #1a1a2e; color: #c8a020; border: 1px solid #4a3a10;"
-        "border-radius: 8px; font-weight: bold; font-size: 13px; }"
-        "QPushButton:hover { background: #c8a020; color: #0a0a1a; border-color: #c8a020; }"
-        "QPushButton:disabled { background: #1e1e35; color: #4a4a6a; border-color: #2a2a45; }");
-    stop_btn_->setStyleSheet(
-        "QPushButton { background: #1e1220; color: #e05252; border: 1px solid #5a2a2a;"
-        "border-radius: 8px; font-weight: bold; font-size: 13px; }"
-        "QPushButton:hover { background: #e05252; color: #fff; border-color: #e05252; }"
-        "QPushButton:disabled { background: #1e1e35; color: #4a4a6a; border-color: #2a2a45; }");
+    start_btn_->setObjectName("StartBtn");
+    pause_btn_->setObjectName("PauseBtn");
+    stop_btn_->setObjectName("StopBtn");
 
     btn_row->addWidget(start_btn_);
     btn_row->addWidget(pause_btn_);
@@ -224,17 +188,7 @@ void MainWindow::setup_ui()
     layout->addLayout(btn_row);
 
     // ── Main tab widget ────────────────────────────────────────────────────────
-    const QString tab_style =
-        "QTabWidget::pane { border: 1px solid #2a2a45; background: #12121f;"
-        "  border-radius: 0 4px 4px 4px; }"
-        "QTabBar::tab { background: #1a1a2e; color: #7878aa; padding: 6px 16px;"
-        "  border: 1px solid #2a2a45; border-bottom: none;"
-        "  border-radius: 4px 4px 0 0; margin-right: 2px; }"
-        "QTabBar::tab:selected { background: #12121f; color: #e0e0f0; }"
-        "QTabBar::tab:hover    { color: #e0e0f0; }";
-
     main_tabs_ = new QTabWidget(content);
-    main_tabs_->setStyleSheet(tab_style);
 
     // ── Tab 1: Input Devices ──────────────────────────────────────────────────
     auto* devices_tab    = new QWidget();
@@ -246,18 +200,10 @@ void MainWindow::setup_ui()
     auto* dg_layout = new QVBoxLayout(devices_group_);
 
     device_list_ = new QListWidget(devices_tab);
-    device_list_->setStyleSheet(
-        "QListWidget { background: #0d0d1e; color: #e0e0f0; border: 1px solid #2a2a45;"
-        "border-radius: 4px; font-size: 12px; }"
-        "QListWidget::item:selected { background: #1e1e35; }"
-        "QListWidget::indicator:checked { color: #00c9a7; }");
     dg_layout->addWidget(device_list_);
 
     refresh_btn_ = new QPushButton("Refresh Devices", devices_tab);
-    refresh_btn_->setStyleSheet(
-        "QPushButton { background: #1e1e35; color: #a0a0c0; border: 1px solid #2a2a45;"
-        "border-radius: 6px; padding: 4px 10px; font-size: 12px; }"
-        "QPushButton:hover { background: #2a2a45; color: #e0e0f0; }");
+    refresh_btn_->setObjectName("NeutralBtn");
     dg_layout->addWidget(refresh_btn_);
 
     devices_layout->addWidget(devices_group_);
@@ -275,21 +221,27 @@ void MainWindow::setup_ui()
     background_cb_ = new QCheckBox("Run in background when window is closed", settings_tab);
     sg_layout->addWidget(background_cb_);
 
+    // Theme picker
+    auto* theme_row = new QHBoxLayout();
+    theme_row->addWidget(new QLabel("Theme:", settings_tab));
+    theme_combo_ = new QComboBox(settings_tab);
+    for (const QString& name : Themes::available())
+        theme_combo_->addItem(name);
+    theme_row->addWidget(theme_combo_);
+    theme_row->addStretch();
+    sg_layout->addLayout(theme_row);
+
     settings_layout->addWidget(settings_group_);
 
     // ── IGDB game art ──────────────────────────────────────────────────────────
     igdb_group_ = new QGroupBox("IGDB Game Art", settings_tab);
     auto* igdb_layout = new QVBoxLayout(igdb_group_);
 
-    auto* igdb_hint = new QLabel(
-        "Attach PS5 cover art to profiles. Requires a free Twitch developer account.<br>"
-        "<a href='https://dev.twitch.tv/console/apps/create' style='color:#00c9a7;'>"
-        "Register for free IGDB API keys \u2192</a>",
-        settings_tab);
-    igdb_hint->setStyleSheet("color: #7878aa; font-size: 11px;");
-    igdb_hint->setTextFormat(Qt::RichText);
-    igdb_hint->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    connect(igdb_hint, &QLabel::linkActivated, this, [this](const QString& url) {
+    igdb_hint_ = new QLabel(settings_tab);
+    igdb_hint_->setObjectName("StatsLabel");   // muted text style
+    igdb_hint_->setTextFormat(Qt::RichText);
+    igdb_hint_->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    connect(igdb_hint_, &QLabel::linkActivated, this, [this](const QString& url) {
         static const QStringList browsers = {
             "firefox", "firefox-bin", "chromium", "chromium-browser",
             "google-chrome", "brave", "vivaldi", "opera"
@@ -300,15 +252,12 @@ void MainWindow::setup_ui()
         QMessageBox::information(this, "Open URL",
             "Could not launch a browser automatically.\nPlease visit:\n" + url);
     });
-    igdb_layout->addWidget(igdb_hint);
+    igdb_layout->addWidget(igdb_hint_);
 
     auto* igdb_id_row = new QHBoxLayout();
     igdb_id_row->addWidget(new QLabel("Client ID:", settings_tab));
     igdb_id_edit_ = new QLineEdit(settings_tab);
     igdb_id_edit_->setPlaceholderText("Twitch client ID");
-    igdb_id_edit_->setStyleSheet(
-        "QLineEdit { background: #0d0d1e; color: #e0e0f0; border: 1px solid #2a2a45;"
-        "border-radius: 4px; padding: 3px 8px; font-size: 12px; }");
     igdb_id_row->addWidget(igdb_id_edit_, 1);
     igdb_layout->addLayout(igdb_id_row);
 
@@ -317,9 +266,6 @@ void MainWindow::setup_ui()
     igdb_secret_edit_ = new QLineEdit(settings_tab);
     igdb_secret_edit_->setPlaceholderText("Twitch client secret");
     igdb_secret_edit_->setEchoMode(QLineEdit::Password);
-    igdb_secret_edit_->setStyleSheet(
-        "QLineEdit { background: #0d0d1e; color: #e0e0f0; border: 1px solid #2a2a45;"
-        "border-radius: 4px; padding: 3px 8px; font-size: 12px; }");
     igdb_secret_row->addWidget(igdb_secret_edit_, 1);
     igdb_layout->addLayout(igdb_secret_row);
 
@@ -338,54 +284,46 @@ void MainWindow::setup_ui()
     profile_combo_ = new QComboBox(mapping_tab);
     profile_combo_->setMinimumWidth(140);
     profile_combo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    profile_combo_->setStyleSheet(
-        "QComboBox { background: #0d0d1e; color: #e0e0f0; border: 1px solid #2a2a45;"
-        "border-radius: 4px; padding: 3px 8px; font-size: 12px; }"
-        "QComboBox::drop-down { border: none; }"
-        "QComboBox QAbstractItemView { background: #0d0d1e; color: #e0e0f0;"
-        "  border: 1px solid #2a2a45; selection-background-color: #1e1e35; }");
     profile_row->addWidget(profile_combo_, 1);
 
     profile_load_btn_ = new QPushButton("Load", mapping_tab);
     profile_load_btn_->setFixedWidth(64);
-    profile_load_btn_->setStyleSheet(
-        "QPushButton { background: #1e1e35; color: #00c9a7; border: 1px solid #2a2a45;"
-        "border-radius: 6px; padding: 3px 8px; font-size: 12px; }"
-        "QPushButton:hover { background: #00c9a7; color: #0a0a1a; }"
-        "QPushButton:disabled { background: #1e1e35; color: #4a4a6a; border-color: #2a2a45; }");
+    profile_load_btn_->setObjectName("AccentBtn");
     profile_row->addWidget(profile_load_btn_);
 
     profile_save_btn_ = new QPushButton("Save As...", mapping_tab);
     profile_save_btn_->setFixedWidth(84);
-    profile_save_btn_->setStyleSheet(
-        "QPushButton { background: #1e1e35; color: #a0a0c0; border: 1px solid #2a2a45;"
-        "border-radius: 6px; padding: 3px 8px; font-size: 12px; }"
-        "QPushButton:hover { background: #2a2a45; color: #e0e0f0; }");
+    profile_save_btn_->setObjectName("NeutralBtn");
     profile_row->addWidget(profile_save_btn_);
 
     profile_delete_btn_ = new QPushButton("Delete", mapping_tab);
     profile_delete_btn_->setFixedWidth(64);
-    profile_delete_btn_->setStyleSheet(
-        "QPushButton { background: #1e1220; color: #e05252; border: 1px solid #5a2a2a;"
-        "border-radius: 6px; padding: 3px 8px; font-size: 12px; }"
-        "QPushButton:hover { background: #e05252; color: #fff; }"
-        "QPushButton:disabled { background: #1e1e35; color: #4a4a6a; border-color: #2a2a45; }");
+    profile_delete_btn_->setObjectName("DangerBtn");
     profile_row->addWidget(profile_delete_btn_);
 
     mapping_layout->addLayout(profile_row);
 
-    // ── Mouse Sensitivity (per-profile) ───────────────────────────────────────
-    auto* mouse_group  = new QGroupBox("Mouse Sensitivity", mapping_tab);
+    // ── Mouse Settings (per-profile) ──────────────────────────────────────────
+    auto* mouse_group  = new QGroupBox("Mouse Settings", mapping_tab);
     auto* mouse_layout = new QVBoxLayout(mouse_group);
     mouse_layout->setSpacing(6);
 
-    auto* ms_header = new QHBoxLayout();
-    mouse_enable_cb_ = new QCheckBox("Mouse → Stick", mapping_tab);
-    right_stick_cb_  = new QCheckBox("Use left stick instead", mapping_tab);
-    ms_header->addWidget(mouse_enable_cb_);
-    ms_header->addWidget(right_stick_cb_);
-    ms_header->addStretch();
-    mouse_layout->addLayout(ms_header);
+    auto* ms_enable_row = new QHBoxLayout();
+    mouse_enable_cb_ = new QCheckBox("Enable mouse as analog stick", mapping_tab);
+    ms_enable_row->addWidget(mouse_enable_cb_);
+    ms_enable_row->addStretch();
+    mouse_layout->addLayout(ms_enable_row);
+
+    auto* ms_stick_row = new QHBoxLayout();
+    ms_stick_row->addWidget(new QLabel("Mouse represents:", mapping_tab));
+    ms_stick_row->addSpacing(8);
+    right_stick_rb_ = new QRadioButton("Right Stick", mapping_tab);
+    left_stick_rb_  = new QRadioButton("Left Stick",  mapping_tab);
+    right_stick_rb_->setChecked(true);
+    ms_stick_row->addWidget(left_stick_rb_);
+    ms_stick_row->addWidget(right_stick_rb_);
+    ms_stick_row->addStretch();
+    mouse_layout->addLayout(ms_stick_row);
 
     auto* sens_row = new QHBoxLayout();
     sens_row->addWidget(new QLabel("Sensitivity X:", mapping_tab));
@@ -411,21 +349,16 @@ void MainWindow::setup_ui()
     auto* tp_row = new QHBoxLayout();
     tp_row->addWidget(new QLabel("Touchpad Mode Key:", mapping_tab));
     touchpad_key_label_ = new QLabel("None", mapping_tab);
-    touchpad_key_label_->setStyleSheet("color: #00c9a7; font-size: 12px; min-width: 80px;");
+    touchpad_key_label_->setObjectName("TouchpadKeyLabel");
+    touchpad_key_label_->setMinimumWidth(80);
     tp_row->addWidget(touchpad_key_label_);
     touchpad_key_btn_ = new QPushButton("Set Key", mapping_tab);
     touchpad_key_btn_->setFixedWidth(80);
-    touchpad_key_btn_->setStyleSheet(
-        "QPushButton { background: #1e1e35; color: #a0a0c0; border: 1px solid #2a2a45;"
-        "border-radius: 6px; padding: 3px 8px; font-size: 12px; }"
-        "QPushButton:hover { background: #2a2a45; color: #e0e0f0; }");
+    touchpad_key_btn_->setObjectName("NeutralBtn");
     tp_row->addWidget(touchpad_key_btn_);
     touchpad_key_clear_ = new QPushButton("Clear", mapping_tab);
     touchpad_key_clear_->setFixedWidth(60);
-    touchpad_key_clear_->setStyleSheet(
-        "QPushButton { background: #1e1220; color: #e05252; border: 1px solid #5a2a2a;"
-        "border-radius: 6px; padding: 3px 8px; font-size: 12px; }"
-        "QPushButton:hover { background: #e05252; color: #fff; }");
+    touchpad_key_clear_->setObjectName("DangerBtn");
     tp_row->addWidget(touchpad_key_clear_);
     tp_row->addStretch();
     mouse_layout->addLayout(tp_row);
@@ -480,8 +413,8 @@ void MainWindow::setup_ui()
     connect(igdb_id_edit_,     &QLineEdit::editingFinished, this, save_igdb);
     connect(igdb_secret_edit_, &QLineEdit::editingFinished, this, save_igdb);
 
-    connect(mouse_enable_cb_, &QCheckBox::toggled, this, &MainWindow::on_sensitivity_changed);
-    connect(right_stick_cb_,  &QCheckBox::toggled, this, &MainWindow::on_sensitivity_changed);
+    connect(mouse_enable_cb_, &QCheckBox::toggled,    this, &MainWindow::on_sensitivity_changed);
+    connect(right_stick_rb_,  &QRadioButton::toggled, this, &MainWindow::on_sensitivity_changed);
     connect(sens_x_spin_, qOverload<double>(&QDoubleSpinBox::valueChanged),
             this, &MainWindow::on_sensitivity_changed);
     connect(sens_y_spin_, qOverload<double>(&QDoubleSpinBox::valueChanged),
@@ -505,6 +438,12 @@ void MainWindow::setup_ui()
         editor_->mark_dirty();
         if (worker_->isRunning()) push_config_to_worker();
     });
+
+    connect(theme_combo_, &QComboBox::currentTextChanged,
+            this, &MainWindow::on_theme_changed);
+
+    // Populate the IGDB hint with the current theme's accent colour
+    apply_theme();
 }
 
 void MainWindow::setup_tray()
@@ -575,7 +514,7 @@ void MainWindow::on_stop_clicked()
 void MainWindow::on_worker_started()
 {
     update_state(true);
-    tray_icon_->showMessage("kb-to-ds5",
+    tray_icon_->showMessage("KB2DS",
                             "Virtual DualSense is active. Keyboard is grabbed.",
                             QSystemTrayIcon::Information, 2000);
 }
@@ -609,7 +548,7 @@ void MainWindow::on_mapping_changed()
 void MainWindow::on_sensitivity_changed()
 {
     mouse_stick_.enabled         = mouse_enable_cb_->isChecked();
-    mouse_stick_.use_right_stick = !right_stick_cb_->isChecked();
+    mouse_stick_.use_right_stick = right_stick_rb_->isChecked();
     mouse_stick_.sensitivity_x   = static_cast<float>(sens_x_spin_->value());
     mouse_stick_.sensitivity_y   = static_cast<float>(sens_y_spin_->value());
     save_settings();
@@ -623,6 +562,30 @@ void MainWindow::on_tray_activated(QSystemTrayIcon::ActivationReason reason)
     if (reason == QSystemTrayIcon::DoubleClick) {
         showNormal(); activateWindow();
     }
+}
+
+void MainWindow::on_theme_changed()
+{
+    Themes::setCurrent(theme_combo_->currentText());
+    qApp->setPalette(Themes::buildPalette(Themes::current()));
+    qApp->setStyleSheet(Themes::buildStylesheet(Themes::current()));
+    apply_theme();
+    save_settings();
+}
+
+void MainWindow::apply_theme()
+{
+    const AppTheme& t = Themes::current();
+
+    // IGDB hint label embeds an accent-coloured hyperlink in HTML — rebuild it
+    // whenever the theme changes so the link colour stays correct.
+    igdb_hint_->setText(
+        "Attach PS5 cover art to profiles. Requires a free Twitch developer account.<br>"
+        "<a href='https://dev.twitch.tv/console/apps/create' style='color:" + t.accent + ";'>"
+        "Register for free IGDB API keys \u2192</a>");
+
+    // Table arrow items are QTableWidgetItem foreground (not styleable via QSS)
+    editor_->refresh_display();
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -639,11 +602,11 @@ void MainWindow::update_state(bool running)
 
     if (running) {
         status_label_->setText("Running — keyboard grabbed, virtual DualSense active");
-        tray_icon_->setToolTip("kb-to-ds5 — running");
+        tray_icon_->setToolTip("KB2DS — running");
     } else {
         status_label_->setText("Stopped");
         stats_label_->setText("Reports: 0");
-        tray_icon_->setToolTip("kb-to-ds5 — stopped");
+        tray_icon_->setToolTip("KB2DS — stopped");
     }
 }
 
@@ -701,11 +664,21 @@ void MainWindow::save_settings()
     settings_.setValue("touchpad_key",  mouse_stick_.touchpad_key);
     settings_.setValue("igdb_client_id",     igdb_id_edit_->text().trimmed());
     settings_.setValue("igdb_client_secret", igdb_secret_edit_->text().trimmed());
+    settings_.setValue("theme",         theme_combo_->currentText());
 }
 
 void MainWindow::load_settings()
 {
     background_cb_->setChecked(settings_.value("background", false).toBool());
+
+    // Theme (main.cpp already applied the saved theme; just sync the combo widget)
+    {
+        const QString saved_theme = settings_.value("theme", Themes::darkBlue().name).toString();
+        theme_combo_->blockSignals(true);
+        const int ti = theme_combo_->findText(saved_theme);
+        if (ti >= 0) theme_combo_->setCurrentIndex(ti);
+        theme_combo_->blockSignals(false);
+    }
 
     mouse_stick_.enabled         = settings_.value("mouse_enabled", true).toBool();
     mouse_stick_.use_right_stick = settings_.value("mouse_right",   true).toBool();
@@ -717,17 +690,17 @@ void MainWindow::load_settings()
     // don't fire on_sensitivity_changed() mid-load and call save_settings()
     // with still-empty IGDB fields, overwriting the real saved credentials.
     mouse_enable_cb_->blockSignals(true);
-    right_stick_cb_->blockSignals(true);
+    right_stick_rb_->blockSignals(true); left_stick_rb_->blockSignals(true);
     sens_x_spin_->blockSignals(true);
     sens_y_spin_->blockSignals(true);
 
     mouse_enable_cb_->setChecked(mouse_stick_.enabled);
-    right_stick_cb_->setChecked(!mouse_stick_.use_right_stick);
+    right_stick_rb_->setChecked(mouse_stick_.use_right_stick); left_stick_rb_->setChecked(!mouse_stick_.use_right_stick);
     sens_x_spin_->setValue(mouse_stick_.sensitivity_x);
     sens_y_spin_->setValue(mouse_stick_.sensitivity_y);
 
     mouse_enable_cb_->blockSignals(false);
-    right_stick_cb_->blockSignals(false);
+    right_stick_rb_->blockSignals(false); left_stick_rb_->blockSignals(false);
     sens_x_spin_->blockSignals(false);
     sens_y_spin_->blockSignals(false);
 
@@ -771,8 +744,9 @@ void MainWindow::update_profile_display(const QString& name)
     }
     const QString cover = MappingStorage::profileCoverPath(name);
     if (QFile::exists(cover)) {
-        const int w = profile_display_label_->width()  - 2;
-        const int h = profile_display_label_->height() - 2;
+        // Use the box's fixed dimensions — reliable before and after show()
+        const int w = profile_box_->width()  - 8;
+        const int h = profile_box_->height() - 8;
         const QPixmap pm = QPixmap(cover).scaled(
             w, h, Qt::KeepAspectRatio, Qt::SmoothTransformation);
         profile_display_label_->setPixmap(pm);
@@ -815,13 +789,6 @@ void MainWindow::show_profile_menu()
     if (profiles.isEmpty()) return;
 
     QMenu menu(this);
-    menu.setStyleSheet(
-        "QMenu { background: #1a1a2e; color: #e0e0f0; border: 1px solid #2a2a45;"
-        "  border-radius: 6px; padding: 4px; }"
-        "QMenu::item { padding: 6px 16px 6px 8px; border-radius: 4px; }"
-        "QMenu::item:selected { background: #2a2a45; color: #00c9a7; }"
-        "QMenu::item:checked { color: #00c9a7; font-weight: bold; }");
-
     const QString current = profile_combo_->currentText();
     for (const QString& name : profiles) {
         QAction* action = menu.addAction(name);
@@ -852,11 +819,11 @@ void MainWindow::load_profile_by_name(const QString& name)
 
     mouse_stick_ = cfg.mouse_stick;
     mouse_enable_cb_->blockSignals(true);
-    right_stick_cb_->blockSignals(true);
+    right_stick_rb_->blockSignals(true); left_stick_rb_->blockSignals(true);
     sens_x_spin_->blockSignals(true);
     sens_y_spin_->blockSignals(true);
     mouse_enable_cb_->setChecked(mouse_stick_.enabled);
-    right_stick_cb_->setChecked(!mouse_stick_.use_right_stick);
+    right_stick_rb_->setChecked(mouse_stick_.use_right_stick); left_stick_rb_->setChecked(!mouse_stick_.use_right_stick);
     sens_x_spin_->setValue(mouse_stick_.sensitivity_x);
     sens_y_spin_->setValue(mouse_stick_.sensitivity_y);
     touchpad_key_label_->setText(
@@ -864,7 +831,7 @@ void MainWindow::load_profile_by_name(const QString& name)
             ? MappingStorage::keyName(mouse_stick_.touchpad_key)
             : "None");
     mouse_enable_cb_->blockSignals(false);
-    right_stick_cb_->blockSignals(false);
+    right_stick_rb_->blockSignals(false); left_stick_rb_->blockSignals(false);
     sens_x_spin_->blockSignals(false);
     sens_y_spin_->blockSignals(false);
 
@@ -900,11 +867,11 @@ void MainWindow::on_profile_load()
 
     mouse_stick_ = cfg.mouse_stick;
     mouse_enable_cb_->blockSignals(true);
-    right_stick_cb_->blockSignals(true);
+    right_stick_rb_->blockSignals(true); left_stick_rb_->blockSignals(true);
     sens_x_spin_->blockSignals(true);
     sens_y_spin_->blockSignals(true);
     mouse_enable_cb_->setChecked(mouse_stick_.enabled);
-    right_stick_cb_->setChecked(!mouse_stick_.use_right_stick);
+    right_stick_rb_->setChecked(mouse_stick_.use_right_stick); left_stick_rb_->setChecked(!mouse_stick_.use_right_stick);
     sens_x_spin_->setValue(mouse_stick_.sensitivity_x);
     sens_y_spin_->setValue(mouse_stick_.sensitivity_y);
     touchpad_key_label_->setText(
@@ -912,7 +879,7 @@ void MainWindow::on_profile_load()
             ? MappingStorage::keyName(mouse_stick_.touchpad_key)
             : "None");
     mouse_enable_cb_->blockSignals(false);
-    right_stick_cb_->blockSignals(false);
+    right_stick_rb_->blockSignals(false); left_stick_rb_->blockSignals(false);
     sens_x_spin_->blockSignals(false);
     sens_y_spin_->blockSignals(false);
 

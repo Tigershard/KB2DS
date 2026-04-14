@@ -2,7 +2,7 @@
 # and evdev input nodes (for EVIOCGRAB keyboard/mouse exclusive access).
 #
 # Install:
-#   sudo cp 99-kb-to-ds5.rules /etc/udev/rules.d/
+#   sudo cp 99-KB2DS.rules /etc/udev/rules.d/
 #   sudo udevadm control --reload-rules && sudo udevadm trigger
 #   sudo usermod -aG input $USER   # log out and back in for group to take effect
 

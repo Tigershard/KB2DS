@@ -184,7 +184,7 @@ std::vector<uint8_t> InputWorker::get_report_descriptor()
 {
     auto info = relay::find_hidraw_device(DS5_VID, DS5_PID);
     if (info) {
-        fprintf(stderr, "[kb-to-ds5] Found physical DualSense at %s\n",
+        fprintf(stderr, "[KB2DS] Found physical DualSense at %s\n",
                 info->path.c_str());
         const int fd = ::open(info->path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         if (fd >= 0) {
@@ -192,24 +192,24 @@ std::vector<uint8_t> InputWorker::get_report_descriptor()
             try {
                 auto rd = relay::read_report_descriptor(fd);
                 if (!rd.empty()) {
-                    fprintf(stderr, "[kb-to-ds5] Using descriptor from %s (%zu bytes)\n",
+                    fprintf(stderr, "[KB2DS] Using descriptor from %s (%zu bytes)\n",
                             info->path.c_str(), rd.size());
                     return rd;
                 }
-                fprintf(stderr, "[kb-to-ds5] Descriptor from %s was empty — using built-in\n",
+                fprintf(stderr, "[KB2DS] Descriptor from %s was empty — using built-in\n",
                         info->path.c_str());
             } catch (const std::exception& e) {
-                fprintf(stderr, "[kb-to-ds5] Failed to read descriptor from %s: %s — using built-in\n",
+                fprintf(stderr, "[KB2DS] Failed to read descriptor from %s: %s — using built-in\n",
                         info->path.c_str(), e.what());
             }
         } else {
-            fprintf(stderr, "[kb-to-ds5] Cannot open %s: %s — using built-in\n",
+            fprintf(stderr, "[KB2DS] Cannot open %s: %s — using built-in\n",
                     info->path.c_str(), strerror(errno));
         }
     } else {
-        fprintf(stderr, "[kb-to-ds5] No physical DualSense found — using built-in descriptor\n");
+        fprintf(stderr, "[KB2DS] No physical DualSense found — using built-in descriptor\n");
     }
-    fprintf(stderr, "[kb-to-ds5] Built-in descriptor size: %zu bytes\n",
+    fprintf(stderr, "[KB2DS] Built-in descriptor size: %zu bytes\n",
             DS5_FALLBACK_RDESC.size());
     return DS5_FALLBACK_RDESC;
 }
@@ -295,7 +295,7 @@ bool InputWorker::open_and_grab_inputs()
 
         const int fd = ::open(path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         if (fd < 0) {
-            fprintf(stderr, "[kb-to-ds5] Cannot open %s: %s\n", path.c_str(), strerror(errno));
+            fprintf(stderr, "[KB2DS] Cannot open %s: %s\n", path.c_str(), strerror(errno));
             continue;
         }
 
@@ -303,13 +303,13 @@ bool InputWorker::open_and_grab_inputs()
         ::ioctl(fd, EVIOCGNAME(sizeof(dname)), dname);
 
         if (::ioctl(fd, EVIOCGRAB, 1) < 0) {
-            fprintf(stderr, "[kb-to-ds5] EVIOCGRAB failed for %s (%s): %s\n",
+            fprintf(stderr, "[KB2DS] EVIOCGRAB failed for %s (%s): %s\n",
                     node.c_str(), dname, strerror(errno));
             ::close(fd);
             continue;
         }
 
-        fprintf(stderr, "[kb-to-ds5] Grabbed %s — %s\n", node.c_str(), dname);
+        fprintf(stderr, "[KB2DS] Grabbed %s — %s\n", node.c_str(), dname);
         grabbed_nodes_.push_back({fd, path});
     }
     return !grabbed_nodes_.empty();
@@ -321,7 +321,7 @@ void InputWorker::release_inputs()
         if (n.fd >= 0) {
             ::ioctl(n.fd, EVIOCGRAB, 0);
             ::close(n.fd);
-            fprintf(stderr, "[kb-to-ds5] Released %s\n", n.path.c_str());
+            fprintf(stderr, "[KB2DS] Released %s\n", n.path.c_str());
         }
     }
     grabbed_nodes_.clear();
@@ -334,30 +334,30 @@ bool InputWorker::build_uhid_device()
     cfg.vendor            = DS5_VID;
     cfg.product           = DS5_PID;
     cfg.report_descriptor = get_report_descriptor();
-    fprintf(stderr, "[kb-to-ds5] Sending UHID_CREATE2 with descriptor: %zu bytes\n",
+    fprintf(stderr, "[KB2DS] Sending UHID_CREATE2 with descriptor: %zu bytes\n",
             cfg.report_descriptor.size());
     if (cfg.report_descriptor.empty()) {
         emit error("Report descriptor is empty — cannot create virtual DualSense.");
         return false;
     }
     cfg.on_get_report = [](uint8_t report_id) -> std::vector<uint8_t> {
-        fprintf(stderr, "[kb-to-ds5] GET_REPORT 0x%02X requested\n", report_id);
+        fprintf(stderr, "[KB2DS] GET_REPORT 0x%02X requested\n", report_id);
         if (report_id == DS_REPORT_CALIBRATION) {
-            fprintf(stderr, "[kb-to-ds5] → responding with calibration (41 bytes)\n");
+            fprintf(stderr, "[KB2DS] → responding with calibration (41 bytes)\n");
             return make_calibration_report();
         }
         if (report_id == DS_REPORT_FIRMWARE) {
-            fprintf(stderr, "[kb-to-ds5] → responding with firmware info (64 bytes)\n");
+            fprintf(stderr, "[KB2DS] → responding with firmware info (64 bytes)\n");
             return make_firmware_report();
         }
         if (report_id == DS_REPORT_PAIRING) {
-            fprintf(stderr, "[kb-to-ds5] → responding with pairing info\n");
+            fprintf(stderr, "[KB2DS] → responding with pairing info\n");
             std::vector<uint8_t> buf(20, 0x00);
             buf[0] = DS_REPORT_PAIRING;
             buf[6] = 0x01;  // MAC: 00:00:00:00:00:01
             return buf;
         }
-        fprintf(stderr, "[kb-to-ds5] → unknown report 0x%02X — returning EIO\n", report_id);
+        fprintf(stderr, "[KB2DS] → unknown report 0x%02X — returning EIO\n", report_id);
         return {};
     };
 
@@ -520,7 +520,7 @@ void InputWorker::run()
                    "Make sure the user is in the 'input' group:\n"
                    "  sudo usermod -aG input $USER\n"
                    "and install the udev rule:\n"
-                   "  sudo cp 99-kb-to-ds5.rules /etc/udev/rules.d/\n"
+                   "  sudo cp 99-KB2DS.rules /etc/udev/rules.d/\n"
                    "  sudo udevadm control --reload-rules");
         running_ = false;
         return;
@@ -584,7 +584,7 @@ void InputWorker::run()
                                REPORT_INTERVAL_MS);
         if (ret < 0) {
             if (errno == EINTR) continue;
-            fprintf(stderr, "[kb-to-ds5] poll error: %s\n", strerror(errno));
+            fprintf(stderr, "[KB2DS] poll error: %s\n", strerror(errno));
             break;
         }
 

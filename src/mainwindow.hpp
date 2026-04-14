@@ -12,6 +12,7 @@ class MappingEditorWidget;
 class IgdbClient;
 class QCheckBox;
 class QComboBox;
+class QRadioButton;
 class QDoubleSpinBox;
 class QGroupBox;
 class QLabel;
@@ -46,6 +47,7 @@ private slots:
     void on_profile_save_as();
     void on_profile_save_current();
     void on_profile_delete();
+    void on_theme_changed();
 
 private:
     void setup_ui();
@@ -60,6 +62,7 @@ private:
     void update_profile_display(const QString& name);
     void load_profile_by_name(const QString& name);
     void show_profile_menu();
+    void apply_theme();
     QStringList selected_device_paths() const;
 
     // ── UI elements ───────────────────────────────────────────────────────────
@@ -79,7 +82,8 @@ private:
     QGroupBox*           settings_group_   = nullptr;
     QCheckBox*           background_cb_    = nullptr;
     QCheckBox*           mouse_enable_cb_  = nullptr;
-    QCheckBox*           right_stick_cb_   = nullptr;
+    QRadioButton*        right_stick_rb_   = nullptr;
+    QRadioButton*        left_stick_rb_    = nullptr;
     QDoubleSpinBox*      sens_x_spin_      = nullptr;
     QDoubleSpinBox*      sens_y_spin_      = nullptr;
     QLabel*              touchpad_key_label_ = nullptr;
@@ -89,6 +93,8 @@ private:
     QPushButton*         profile_load_btn_   = nullptr;
     QPushButton*         profile_save_btn_   = nullptr;
     QPushButton*         profile_delete_btn_ = nullptr;
+    QLabel*              igdb_hint_          = nullptr;
+    QComboBox*           theme_combo_        = nullptr;
     MappingEditorWidget* editor_           = nullptr;
     ControllerMapWidget* controller_map_   = nullptr;
     QTabWidget*          main_tabs_        = nullptr;

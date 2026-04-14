@@ -1,4 +1,5 @@
 #include "mappingeditorwidget.hpp"
+#include "apptheme.hpp"
 #include "mappingstorage.hpp"
 
 #include <QCheckBox>
@@ -100,16 +101,13 @@ KeyCaptureDialog::KeyCaptureDialog(QWidget* parent)
 
     hint_label_ = new QLabel("Press a key or mouse button...", this);
     hint_label_->setAlignment(Qt::AlignCenter);
-    hint_label_->setStyleSheet("font-size: 13px; color: #e0e0f0;");
+    hint_label_->setStyleSheet("font-size: 13px;");
     layout->addWidget(hint_label_);
 
     layout->addStretch();
 
     auto* cancel_btn = new QPushButton("Cancel", this);
-    cancel_btn->setStyleSheet(
-        "QPushButton { background: #1e1220; color: #e05252; border: 1px solid #5a2a2a;"
-        "border-radius: 6px; padding: 4px 16px; }"
-        "QPushButton:hover { background: #e05252; color: #fff; }");
+    cancel_btn->setObjectName("DangerBtn");
     layout->addWidget(cancel_btn, 0, Qt::AlignRight);
 
     connect(cancel_btn, &QPushButton::clicked, this, &QDialog::reject);
@@ -166,17 +164,10 @@ OutputPickerDialog::OutputPickerDialog(QWidget* parent)
     layout->setContentsMargins(16, 16, 16, 16);
 
     auto* label = new QLabel("Choose the DualSense output:", this);
-    label->setStyleSheet("font-size: 12px; color: #e0e0f0;");
+    label->setStyleSheet("font-size: 12px;");
     layout->addWidget(label);
 
     auto* combo = new QComboBox(this);
-    combo->setStyleSheet(
-        "QComboBox { background: #1c1c2e; color: #e0e0f0; border: 1px solid #2a2a45;"
-        "border-radius: 6px; padding: 4px 8px; min-height: 26px; }"
-        "QComboBox::drop-down { border: none; }"
-        "QComboBox QAbstractItemView { background: #1c1c2e; color: #e0e0f0;"
-        "border: 1px solid #2a2a45; selection-background-color: #2a2a45; }");
-
     for (int i = 0; i < kb::DS5_OUTPUT_COUNT; ++i)
         combo->addItem(QString::fromLatin1(kb::DS5_OUTPUTS[i].name), i);
 
@@ -184,14 +175,8 @@ OutputPickerDialog::OutputPickerDialog(QWidget* parent)
 
     auto* buttons = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setStyleSheet(
-        "QPushButton { background: #00c9a7; color: #0a0a1a; border: none;"
-        "border-radius: 6px; padding: 4px 16px; font-weight: bold; }"
-        "QPushButton:hover { background: #00e0bb; }");
-    buttons->button(QDialogButtonBox::Cancel)->setStyleSheet(
-        "QPushButton { background: #1e1220; color: #e05252; border: 1px solid #5a2a2a;"
-        "border-radius: 6px; padding: 4px 16px; }"
-        "QPushButton:hover { background: #e05252; color: #fff; }");
+    buttons->button(QDialogButtonBox::Ok)->setObjectName("OkBtn");
+    buttons->button(QDialogButtonBox::Cancel)->setObjectName("DangerBtn");
     layout->addWidget(buttons);
 
     connect(buttons, &QDialogButtonBox::accepted, this, [this, combo]() {
@@ -226,12 +211,6 @@ MappingEditorWidget::MappingEditorWidget(QWidget* parent)
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table_->setAlternatingRowColors(true);
-    table_->setStyleSheet(
-        "QTableWidget { background: #12121f; border: none; gridline-color: #1c1c2e; }"
-        "QTableWidget::item { padding: 4px; color: #e0e0f0; }"
-        "QTableWidget::item:selected { background: #2a2a45; }"
-        "QHeaderView::section { background: #0d0d1e; color: #7878aa; border: none;"
-        "padding: 4px; font-size: 10px; border-bottom: 1px solid #2a2a45; }");
     inner->addWidget(table_);
 
     auto* btn_row = new QHBoxLayout();
@@ -239,21 +218,9 @@ MappingEditorWidget::MappingEditorWidget(QWidget* parent)
     delete_btn_ = new QPushButton("Delete Selected", this);
     save_btn_   = new QPushButton("Save Profile",    this);
 
-    add_btn_->setStyleSheet(
-        "QPushButton { background: #00c9a7; color: #0a0a1a; border: none;"
-        "border-radius: 6px; padding: 5px 12px; font-weight: bold; font-size: 12px; }"
-        "QPushButton:hover { background: #00e0bb; }"
-        "QPushButton:disabled { background: #1e1e35; color: #4a4a6a; }");
-    delete_btn_->setStyleSheet(
-        "QPushButton { background: #1e1220; color: #e05252; border: 1px solid #5a2a2a;"
-        "border-radius: 6px; padding: 5px 12px; font-size: 12px; }"
-        "QPushButton:hover { background: #e05252; color: #fff; }"
-        "QPushButton:disabled { background: #1e1e35; color: #4a4a6a; border-color: #2a2a45; }");
-    save_btn_->setStyleSheet(
-        "QPushButton { background: #1e1e35; color: #4a4a6a; border: 1px solid #2a2a45;"
-        "border-radius: 6px; padding: 5px 12px; font-size: 12px; }"
-        "QPushButton:enabled { background: #1a2a1a; color: #00c9a7; border-color: #00c9a7; }"
-        "QPushButton:enabled:hover { background: #00c9a7; color: #0a0a1a; }");
+    add_btn_->setObjectName("AddMappingBtn");
+    delete_btn_->setObjectName("DangerBtn");
+    save_btn_->setObjectName("SaveMappingBtn");
     save_btn_->setEnabled(false);
 
     btn_row->addWidget(add_btn_);
@@ -311,6 +278,11 @@ void MappingEditorWidget::mark_dirty()
     save_btn_->setEnabled(add_btn_->isEnabled());  // disabled while running
 }
 
+void MappingEditorWidget::refresh_display()
+{
+    rebuild_table();
+}
+
 void MappingEditorWidget::retranslate(bool /*ru*/)
 {
     // Localisation hook; English only for now
@@ -331,7 +303,7 @@ void MappingEditorWidget::add_table_row(int row, const kb::Mapping& m)
     // Col 0: enable checkbox
     auto* cb = new QCheckBox(this);
     cb->setChecked(m.enabled);
-    cb->setStyleSheet("QCheckBox { margin-left: 6px; }");
+    cb->setStyleSheet("margin-left: 6px;");
     table_->setCellWidget(row, 0, cb);
     connect(cb, &QCheckBox::toggled, this, [this, row](bool checked) {
         if (row < mappings_.size()) {
@@ -366,10 +338,10 @@ void MappingEditorWidget::add_table_row(int row, const kb::Mapping& m)
     out_item->setTextAlignment(Qt::AlignCenter);
     table_->setItem(row, 1, out_item);
 
-    // Col 2: arrow
+    // Col 2: arrow (colour follows current theme accent)
     auto* arrow = new QTableWidgetItem("→");
     arrow->setTextAlignment(Qt::AlignCenter);
-    arrow->setForeground(QColor(0x00, 0xc9, 0xa7));
+    arrow->setForeground(QColor(Themes::current().accent));
     table_->setItem(row, 2, arrow);
 
     // Col 3: input key name
@@ -441,13 +413,7 @@ void MappingEditorWidget::on_context_menu(const QPoint& pos)
     const int row = table_->rowAt(pos.y());
     if (row < 0 || row >= mappings_.size()) return;
 
-    const QString menu_style =
-        "QMenu { background: #1a1a2e; color: #e0e0f0; border: 1px solid #2a2a45; }"
-        "QMenu::item:selected { background: #2a2a45; }"
-        "QMenu::item:disabled { color: #4a4a6a; }";
-
     QMenu menu(this);
-    menu.setStyleSheet(menu_style);
     auto* act_input  = menu.addAction("Change Input Key");
     auto* act_output = menu.addAction("Change DS5 Output");
     menu.addSeparator();

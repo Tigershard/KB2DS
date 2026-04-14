@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(kb-to-ds5 LANGUAGES CXX)
+project(KB2DS LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,8 +15,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
 
-add_executable(kb-to-ds5
+add_executable(KB2DS
     src/main.cpp
+    src/apptheme.cpp
     src/mainwindow.cpp
     src/inputworker.cpp
     src/mappingstorage.cpp
@@ -27,8 +28,8 @@ add_executable(kb-to-ds5
     assets/resources.qrc
 )
 
-target_include_directories(kb-to-ds5 PRIVATE src relay-core)
-target_link_libraries(kb-to-ds5 PRIVATE Qt6::Widgets Qt6::Network)
+target_include_directories(KB2DS PRIVATE src relay-core)
+target_link_libraries(KB2DS PRIVATE Qt6::Widgets Qt6::Network)
 
-install(TARGETS kb-to-ds5 DESTINATION bin)
-install(FILES 99-kb-to-ds5.rules DESTINATION /etc/udev/rules.d)
+install(TARGETS KB2DS DESTINATION bin)
+install(FILES 99-KB2DS.rules DESTINATION /etc/udev/rules.d)

@@ -3,11 +3,11 @@
 #include <QStringList>
 
 namespace MappingStorage {
-    // Current mapping (auto-saved to ~/.config/kb-to-ds5/mappings.json)
+    // Current mapping (auto-saved to ~/.config/KB2DS/mappings.json)
     void save(const kb::Config& config);
     kb::Config load();
 
-    // Named profiles (stored in ~/.config/kb-to-ds5/profiles/<name>.json)
+    // Named profiles (stored in ~/.config/KB2DS/profiles/<name>.json)
     QStringList listProfiles();
     void saveProfile(const kb::Config& config, const QString& name);
     kb::Config loadProfile(const QString& name);
