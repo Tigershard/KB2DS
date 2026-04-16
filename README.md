@@ -66,7 +66,9 @@ sudo usermod -aG input $USER
 
 ## Usage
 
-1. Start PS5 Remote Play and connect to your console.
+> **Linux users:** [Chiaki-ng](https://streetpea.github.io/chiaki-ng/) is a recommended open-source PS5 Remote Play client for Linux.
+
+1. Start PS5 Remote Play (or Chiaki-ng) and connect to your console.
 2. Launch `KB2DS` (or find it in your application menu if installed).
 3. Select the keyboard and mouse devices to grab from the device list.
 4. Click **Start**. Your keyboard and mouse are now captured and translated to DualSense input.
@@ -78,7 +80,7 @@ All mappings are fully editable in the **Mappings** tab. Any key or mouse button
 
 ## Mouse sensitivity
 
-Mouse movement is mapped to the right analog stick by default. Sensitivity can be tuned independently for X and Y axes (range 0.01–10.0) in the **Settings** tab. A value around 0.5–1.0 works well for most games; increase it if the stick feels sluggish.
+Mouse movement is mapped to the right analog stick by default. Sensitivity can be tuned independently for X and Y axes (range 0.01–10.0) in the **Settings** tab.
 
 You can also switch mouse movement to the left stick, or bind a key to enter touchpad mode (moves the DualSense touchpad cursor instead of a stick).
 
@@ -91,6 +93,8 @@ The physical controller's inputs are **not** forwarded — only its descriptor i
 ## Acknowledgements
 
 The UHID device creation and HID descriptor work in this project was informed by [dualsensectl](https://github.com/nowrep/dualsensectl) by nowrep, which served as the baseline for understanding the DualSense HID protocol on Linux.
+
+[ds5-edge-relay](https://github.com/Follen22/ds5-edge-relay) by Follen22 served as inspiration for the DualSense controller emulation approach used in this project.
 
 ## License
 
