@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <QSet>
 #include <QThread>
 
 namespace relay { class UhidDevice; }
@@ -37,6 +38,7 @@ signals:
     void error(const QString& message);
     void stats(quint64 reports_sent);
     void log_message(const QString& msg);
+    void keys_changed(QSet<int> active_codes);  // emitted on key down/up; empty when paused/stopped
 
 protected:
     void run() override;

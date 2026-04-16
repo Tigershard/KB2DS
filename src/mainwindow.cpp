@@ -68,6 +68,8 @@ MainWindow::MainWindow(QWidget* parent)
     connect(worker_, &InputWorker::error,        this, &MainWindow::on_worker_error);
     connect(worker_, &InputWorker::stats,        this, &MainWindow::on_worker_stats);
     connect(worker_, &InputWorker::log_message,  this, &MainWindow::on_worker_log);
+    connect(worker_, &InputWorker::keys_changed, editor_,         &MappingEditorWidget::set_active_keys);
+    connect(worker_, &InputWorker::keys_changed, controller_map_, &ControllerMapWidget::set_active_keys);
 }
 
 MainWindow::~MainWindow() {

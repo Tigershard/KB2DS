@@ -1,6 +1,6 @@
 #include "mappingeditorwidget.hpp"
-#include "apptheme.hpp"
 #include "mappingstorage.hpp"
+#include "apptheme.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -8,6 +8,7 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QIcon>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMenu>
@@ -17,6 +18,47 @@
 #include <QVBoxLayout>
 
 #include <linux/input-event-codes.h>
+
+// ── DS5 output icon lookup ────────────────────────────────────────────────────
+
+static QIcon icon_for_ds5_output(const char* name)
+{
+    static const struct { const char* name; const char* path; } MAP[] = {
+        {"Square",              ":/Square.png"},
+        {"Cross",               ":/Cross.png"},
+        {"Circle",              ":/Circle.png"},
+        {"Triangle",            ":/Triangle.png"},
+        {"L1",                  ":/L1.png"},
+        {"R1",                  ":/R1.png"},
+        {"L2 (digital)",        ":/L2.png"},
+        {"R2 (digital)",        ":/R2.png"},
+        {"L2 (analog)",         ":/L2.png"},
+        {"R2 (analog)",         ":/R2.png"},
+        {"Create",              ":/Share.png"},
+        {"Options",             ":/Options.png"},
+        {"L3",                  ":/L3.png"},
+        {"R3",                  ":/R3.png"},
+        {"PS",                  ":/PS.png"},
+        {"Touchpad",            ":/Touchpad.png"},
+        {"DPad Up",             ":/Dpad Up.png"},
+        {"DPad Right",          ":/Dpad Right.png"},
+        {"DPad Down",           ":/Dpad Down.png"},
+        {"DPad Left",           ":/Dpad Left.png"},
+        {"Left Stick Left",     ":/LeftStick.png"},
+        {"Left Stick Right",    ":/LeftStick.png"},
+        {"Left Stick Up",       ":/LeftStick.png"},
+        {"Left Stick Down",     ":/LeftStick.png"},
+        {"Right Stick Left",    ":/RightStick.png"},
+        {"Right Stick Right",   ":/RightStick.png"},
+        {"Right Stick Up",      ":/RightStick.png"},
+        {"Right Stick Down",    ":/RightStick.png"},
+    };
+    for (const auto& e : MAP) {
+        if (std::strcmp(e.name, name) == 0)
+            return QIcon(e.path);
+    }
+    return {};
+}
 
 // ── Qt key → evdev code lookup ────────────────────────────────────────────────
 
@@ -155,7 +197,7 @@ void KeyCaptureDialog::mousePressEvent(QMouseEvent* event)
 OutputPickerDialog::OutputPickerDialog(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle("Select DS5 Output");
+    setWindowTitle("Select DualSense Output");
     setModal(true);
     setMinimumWidth(300);
 
@@ -168,8 +210,11 @@ OutputPickerDialog::OutputPickerDialog(QWidget* parent)
     layout->addWidget(label);
 
     auto* combo = new QComboBox(this);
-    for (int i = 0; i < kb::DS5_OUTPUT_COUNT; ++i)
-        combo->addItem(QString::fromLatin1(kb::DS5_OUTPUTS[i].name), i);
+    combo->setIconSize(QSize(22, 22));
+    for (int i = 0; i < kb::DS5_OUTPUT_COUNT; ++i) {
+        const char* name = kb::DS5_OUTPUTS[i].name;
+        combo->addItem(icon_for_ds5_output(name), QString::fromLatin1(name), i);
+    }
 
     layout->addWidget(combo);
 
@@ -199,14 +244,12 @@ MappingEditorWidget::MappingEditorWidget(QWidget* parent)
     auto* inner = new QVBoxLayout(group);
     inner->setSpacing(6);
 
-    table_ = new QTableWidget(0, 4, this);
-    table_->setHorizontalHeaderLabels({"", "DS5 Output", "→", "Input Key"});
+    table_ = new QTableWidget(0, 3, this);
+    table_->setHorizontalHeaderLabels({"", "DualSense", "Input Key"});
     table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
     table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    table_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
-    table_->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+    table_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     table_->setColumnWidth(0, 28);
-    table_->setColumnWidth(2, 20);
     table_->verticalHeader()->hide();
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -296,6 +339,31 @@ void MappingEditorWidget::rebuild_table()
     for (int i = 0; i < mappings_.size(); ++i)
         add_table_row(i, mappings_[i]);
     updating_ = false;
+    update_highlight();
+}
+
+void MappingEditorWidget::set_active_keys(QSet<int> codes)
+{
+    active_keys_ = std::move(codes);
+    update_highlight();
+}
+
+void MappingEditorWidget::update_highlight()
+{
+    QColor hl = QColor(Themes::current().accent);
+    hl.setAlpha(80);
+    const QBrush hl_brush(hl);
+    const QBrush clear_brush(Qt::transparent);
+
+    for (int row = 0; row < table_->rowCount(); ++row) {
+        auto* key_item = table_->item(row, 2);
+        if (!key_item) continue;
+        const int code    = key_item->data(Qt::UserRole).toInt();
+        const bool active = (code >= 0 && active_keys_.contains(code));
+        const QBrush& brush = active ? hl_brush : clear_brush;
+        if (auto* out_item = table_->item(row, 1)) out_item->setBackground(brush);
+        key_item->setBackground(brush);
+    }
 }
 
 void MappingEditorWidget::add_table_row(int row, const kb::Mapping& m)
@@ -315,6 +383,7 @@ void MappingEditorWidget::add_table_row(int row, const kb::Mapping& m)
     // Col 1: DS5 output name — match against known outputs first for a clean name,
     // fall back to the stored label (stripping any "Key → " prefix for old entries)
     QString out_name;
+    const char* matched_output_name = nullptr;
     for (int i = 0; i < kb::DS5_OUTPUT_COUNT; ++i) {
         const auto& o = kb::DS5_OUTPUTS[i];
         if (m.output_kind == o.kind &&
@@ -325,6 +394,7 @@ void MappingEditorWidget::add_table_row(int row, const kb::Mapping& m)
             m.axis_value  == o.axis_value)
         {
             out_name = QString::fromLatin1(o.name);
+            matched_output_name = o.name;
             break;
         }
     }
@@ -335,24 +405,21 @@ void MappingEditorWidget::add_table_row(int row, const kb::Mapping& m)
             out_name = out_name.mid(arrow_pos + 3);
     }
     auto* out_item = new QTableWidgetItem(out_name);
-    out_item->setTextAlignment(Qt::AlignCenter);
+    out_item->setTextAlignment(Qt::AlignVCenter | Qt::AlignLeft);
+    if (matched_output_name)
+        out_item->setIcon(icon_for_ds5_output(matched_output_name));
     table_->setItem(row, 1, out_item);
 
-    // Col 2: arrow (colour follows current theme accent)
-    auto* arrow = new QTableWidgetItem("→");
-    arrow->setTextAlignment(Qt::AlignCenter);
-    arrow->setForeground(QColor(Themes::current().accent));
-    table_->setItem(row, 2, arrow);
-
-    // Col 3: input key name
+    // Col 2: input key name
     const QString key_name = (m.input_kind == kb::InputKind::Key)
         ? MappingStorage::keyName(m.input_code)
         : QString("Mouse Axis %1").arg(m.input_code);
     auto* key_item = new QTableWidgetItem(key_name);
     key_item->setTextAlignment(Qt::AlignCenter);
-    table_->setItem(row, 3, key_item);
+    key_item->setData(Qt::UserRole, m.input_kind == kb::InputKind::Key ? m.input_code : -1);
+    table_->setItem(row, 2, key_item);
 
-    table_->setRowHeight(row, 28);
+    table_->setRowHeight(row, 35);
 }
 
 void MappingEditorWidget::on_add_clicked()
@@ -405,7 +472,7 @@ void MappingEditorWidget::on_cell_double_clicked(int row, int col)
 {
     if (row < 0 || row >= mappings_.size()) return;
     if (col == 1) remap_output(row);
-    else if (col == 3) remap_input(row);
+    else if (col == 2) remap_input(row);
 }
 
 void MappingEditorWidget::on_context_menu(const QPoint& pos)

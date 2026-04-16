@@ -2,6 +2,27 @@
 <RCC version="1.0">
     <qresource prefix="/">
         <file>icon.png</file>
+        <file>controller.png</file>
         <file>ps5_diagram_simple.png</file>
+        <file>Circle.png</file>
+        <file>Cross.png</file>
+        <file>Square.png</file>
+        <file>Triangle.png</file>
+        <file>L1.png</file>
+        <file>L2.png</file>
+        <file>R1.png</file>
+        <file>R2.png</file>
+        <file>L3.png</file>
+        <file>R3.png</file>
+        <file>Options.png</file>
+        <file>Share.png</file>
+        <file>PS.png</file>
+        <file>Touchpad.png</file>
+        <file>Dpad Up.png</file>
+        <file>Dpad Down.png</file>
+        <file>Dpad Left.png</file>
+        <file>Dpad Right.png</file>
+        <file>LeftStick.png</file>
+        <file>RightStick.png</file>
     </qresource>
 </RCC>

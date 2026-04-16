@@ -376,6 +376,12 @@ void InputWorker::process_evdev_events(int fd)
     while (::read(fd, &ev, sizeof(ev)) == sizeof(ev)) {
         if (ev.type == EV_KEY) {
             key_state_[ev.code] = (ev.value != 0);  // 0=up, 1=down, 2=repeat
+            if (ev.value != 2 && !paused_) {  // ignore repeats and paused state
+                QSet<int> active;
+                for (const auto& [code, pressed] : key_state_)
+                    if (pressed) active.insert(code);
+                emit keys_changed(active);
+            }
         } else if (ev.type == EV_REL) {
             if (ev.code == REL_X)      mouse_acc_x_ += static_cast<float>(ev.value);
             else if (ev.code == REL_Y) mouse_acc_y_ += static_cast<float>(ev.value);
@@ -566,6 +572,7 @@ void InputWorker::run()
                 mouse_acc_x_ = 0.0f;
                 mouse_acc_y_ = 0.0f;
                 paused_ = true;
+                emit keys_changed({});
                 emit pause_changed(true);
                 emit log_message("Paused — keyboard/mouse released");
             } else {
@@ -622,6 +629,7 @@ void InputWorker::run()
     }
 
     // ── 5. Cleanup ────────────────────────────────────────────────────────────
+    emit keys_changed({});
     release_inputs();
     virt_dev_.reset();
     running_ = false;

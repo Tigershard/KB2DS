@@ -3,6 +3,7 @@
 #include "mapping.hpp"
 
 #include <QDialog>
+#include <QSet>
 #include <QWidget>
 
 class QCheckBox;
@@ -61,6 +62,7 @@ public:
 
     void set_running(bool running);
     void retranslate(bool ru);
+    void set_active_keys(QSet<int> codes);
 
     // Call after the profile has been persisted so the Save button goes grey
     void mark_saved();
@@ -91,7 +93,10 @@ private:
     QPushButton*  delete_btn_ = nullptr;
     QPushButton*  save_btn_   = nullptr;
 
+    void update_highlight();
+
     QList<kb::Mapping> mappings_;
+    QSet<int>          active_keys_;
     bool               updating_ = false;   // suppress recursive signals
     bool               dirty_    = false;   // unsaved changes exist
 };

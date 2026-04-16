@@ -3,6 +3,7 @@
 #include "mapping.hpp"
 
 #include <QPixmap>
+#include <QSet>
 #include <QWidget>
 
 // Draws a DualSense silhouette with callout lines showing keyboard→button mappings.
@@ -13,16 +14,17 @@ public:
 
     void set_mappings(const QList<kb::Mapping>& mappings);
     void set_mouse_stick(const kb::MouseStickConfig& ms);
+    void set_active_keys(QSet<int> codes);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void leaveEvent(QEvent* event) override;
 
 private:
     struct AnchorPoint {
         const char* output_name;   // matches DS5 output display name
-        float nx, ny;              // normalised coords in controller space (0..1)
-        float label_dir_x;         // unit-ish vector for label placement
-        float label_dir_y;
+        float label_nx, label_ny;  // normalised coords where the text box is placed
     };
 
     static const AnchorPoint ANCHORS[];
@@ -40,4 +42,6 @@ private:
     QList<kb::Mapping>   mappings_;
     kb::MouseStickConfig mouse_stick_;
     QPixmap              controller_img_;
+    QSet<int>            active_keys_;
+    QPointF              mouse_pos_       = {-1, -1};  // widget coords; (-1,-1) = outside
 };
